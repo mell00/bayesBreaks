@@ -1,9 +1,12 @@
 Package: bayesBreaks
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Bayesian Adaptive Auto-Regression for Structural Breaks in AR Time Series
+Version: 0.0.1
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person("Madison", "Ell", , "mell@tamu.edu", role = c("aut", "cre"))
+Description: Implements the Bayesian Adaptive Auto-Regression (BAAR) algorithm for
+    detecting structural breaks in autoregressive time-series models.  Includes a
+    Metropolis-Hastings sampler, along with helper utilities for
+    generating example datasets.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

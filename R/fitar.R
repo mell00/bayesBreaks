@@ -1,4 +1,30 @@
 
+#' FitAR package
+#'
+#' The original BAAR scripts relied on the `FitAR::FitAR()` function to fit
+#' autoregressive models within each breakpoint segment. The CRAN package was
+#' archived, so this version re-implements the subset
+#' of functionality required by those scripts. It fits a standard
+#' autoregressive model of the requested order using Yule-Walker equations and
+#' returns an object that mimics the structure of the historical FitAR output.
+#'
+#' @param z Numeric vector containing the observed time-series values.
+#' @param p Positive integer giving the autoregressive order. Only scalar orders
+#'   are supported by this compatibility shim.
+#' @param demean Logical; if `TRUE` the series mean is removed prior to
+#'   estimating the AR coefficients.
+#' @param ... Ignored, included for API compatibility with the retired
+#'   `FitAR` package.
+#'
+#' @return A list with class `'FitAR'` containing components compatible with
+#'   the original package, including the fitted coefficients, residuals, and the
+#'   Gaussian log-likelihood under the estimated innovation variance.
+#'
+#' @examples
+#' FitAR(stats::arima.sim(model = list(ar = 0.5), n = 100), 1)
+#'
+#' @export
+#'
 FitAR <- function(z, p, demean = TRUE, ...) {
   if (!is.numeric(z)) {
     stop("`z` must be a numeric vector.")
@@ -35,12 +61,12 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     }
     fits <- z - res
     ans <- list(loglikelihood = loglik, phiHat = numeric(0), sigsqHat = sigma2,
-      muHat = mu_hat, covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = numeric(0),
-      RacfMatrix = matrix(numeric(0), nrow = 0, ncol = 0), LjungBoxQ = NULL,
-      res = res, resid = res, fits = fits, SubsetQ = FALSE, pvec = integer(0),
-      demean = demean, FitMethod = "YW", iterationCount = 0L, convergence = 0L,
-      MeanMLE = FALSE, tsp = stats::tsp(z), call = match.call(), ARModel = "ARz",
-      DataTitle = attr(z, "title"), ModelTitle = "AR(0)", z = z)
+                muHat = mu_hat, covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = numeric(0),
+                RacfMatrix = matrix(numeric(0), nrow = 0, ncol = 0), LjungBoxQ = NULL,
+                res = res, resid = res, fits = fits, SubsetQ = FALSE, pvec = integer(0),
+                demean = demean, FitMethod = "YW", iterationCount = 0L, convergence = 0L,
+                MeanMLE = FALSE, tsp = stats::tsp(z), call = match.call(), ARModel = "ARz",
+                DataTitle = attr(z, "title"), ModelTitle = "AR(0)", z = z)
     class(ans) <- "FitAR"
     return(ans)
   }
@@ -57,20 +83,22 @@ FitAR <- function(z, p, demean = TRUE, ...) {
   fits <- z - res
 
   ans <- list(loglikelihood = loglik, phiHat = phi, sigsqHat = sigma2, muHat = mu_hat,
-    covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = phi, RacfMatrix = matrix(numeric(0),
-      nrow = 0, ncol = 0), LjungBoxQ = NULL, res = res, resid = res, fits = fits,
-    SubsetQ = FALSE, pvec = seq_len(p), demean = demean, FitMethod = "YW", iterationCount = 0L,
-    convergence = 0L, MeanMLE = FALSE, tsp = stats::tsp(z), call = match.call(),
-    ARModel = "ARz", DataTitle = attr(z, "title"), ModelTitle = sprintf("AR(%d)",
-      p), z = z)
+              covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = phi, RacfMatrix = matrix(numeric(0),
+                                                                                                  nrow = 0, ncol = 0), LjungBoxQ = NULL, res = res, resid = res, fits = fits,
+              SubsetQ = FALSE, pvec = seq_len(p), demean = demean, FitMethod = "YW", iterationCount = 0L,
+              convergence = 0L, MeanMLE = FALSE, tsp = stats::tsp(z), call = match.call(),
+              ARModel = "ARz", DataTitle = attr(z, "title"), ModelTitle = sprintf("AR(%d)",
+                                                                                  p), z = z)
   class(ans) <- "FitAR"
   ans
 }
 
+#' @export
 residuals.FitAR <- function(object, ...) {
   object$res
 }
 
+#' @export
 fitted.FitAR <- function(object, ...) {
   object$fits
 }

@@ -1,4 +1,45 @@
 
+#' Bai-Perron breakpoint search for autoregressive segments
+#'
+#' This helper mirrors the classical Bai-Perron dynamic-programming routine
+#' that shipped with the REU BAAR scripts.  It evaluates all admissible
+#' segmentations of an autoregressive time series up to a supplied maximum
+#' number of breakpoints, fits an AR model within each segment using the
+#' lightweight [`FitAR()`][FitAR], and selects the configuration that minimises
+#' the Bayesian information criterion (BIC).
+#'
+#' @param data Numeric vector containing the observed time-series values.
+#' @param order Non-negative integer giving the autoregressive order to fit in
+#'   each segment.
+#' @param interval Minimum proportion of observations that must fall inside any
+#'   segment.  This mirrors the original Bai-Perron `epsilon` constraint and
+#'   prevents degenerate breakpoint placement.
+#' @param max_breaks Maximum number of breakpoints to consider.
+#' @param progress Logical; if `TRUE` a text progress bar summarises the
+#'   pre-computation of segment residual sums of squares.
+#'
+#' @return A list containing
+#'   \describe{
+#'     \item{breakpoints}{The breakpoint locations (indices) for the model with
+#'       the smallest BIC.  An empty integer vector indicates that the null model
+#'       with zero breaks was preferred.}
+#'     \item{all_breakpoints}{A list where the `k`-th element stores the
+#'       breakpoint locations associated with the optimal `k`-break model.}
+#'     \item{SSR}{A named numeric vector giving the residual sum of squares for
+#'       the optimal configuration with `k` breakpoints, including the `0`
+#'       breakpoint null model.}
+#'     \item{BIC}{A named numeric vector giving the Bayesian information
+#'       criterion for each breakpoint count.}
+#'   }
+#'
+#' @examples
+#' set.seed(1)
+#' series <- test_data_2()
+#' bai_perron_ar(series$data_2, order = 0, interval = 0.1, max_breaks = 2,
+#'   progress = FALSE)
+#'
+#' @export
+
 bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
                           progress = interactive()) {
   if (!is.numeric(data)) {

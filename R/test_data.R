@@ -1,4 +1,13 @@
-
+#' Simulated datasets used in BAAR development
+#'
+#' These helper functions generate synthetic time-series examples that were
+#' used during the development of the Bayesian Adaptive Auto-Regression (BAAR)
+#' sampler. Each function returns a data frame with a `time` column and a
+#' second column containing the simulated response values.
+#'
+#' @return A data frame with simulated time-series observations.
+#' @name test_data_generators
+NULL
 
 simulate_segments <- function(means, sds, lengths, column_name) {
   values <- unlist(Map(function(mean, sd, len) stats::rnorm(len, mean = mean, sd = sd),
@@ -7,30 +16,44 @@ simulate_segments <- function(means, sds, lengths, column_name) {
   data.frame(time = time, stats::setNames(list(values), column_name), check.names = FALSE)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_0_a <- function() {
   simulate_segments(10, 1, 90, "data_0_a")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_0_b <- function() {
   simulate_segments(10, 5, 90, "data_0_b")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_1 <- function() {
   simulate_segments(c(10, 20), c(1, 1), c(45, 45), "data_1")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_2 <- function() {
   simulate_segments(c(5, 15, 30), c(1, 1, 1), c(30, 30, 30), "data_2")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_3 <- function() {
   simulate_segments(c(10, 20), c(5, 5), c(45, 45), "data_3")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_4 <- function() {
   simulate_segments(c(5, 20, 35), c(6, 6, 6), c(30, 30, 30), "data_4")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_5 <- function() {
   first <- stats::rnorm(45, mean = seq_len(45), sd = 1)
   second <- stats::rnorm(45, mean = seq(46, 224, by = 4), sd = 1)
@@ -39,6 +62,8 @@ test_data_5 <- function() {
   data.frame(time = time, data_5 = data)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_6 <- function() {
   first <- stats::rnorm(30, mean = seq_len(30), sd = 1)
   second <- stats::rnorm(30, mean = seq(31, 148, by = 4), sd = 1)
@@ -48,6 +73,8 @@ test_data_6 <- function() {
   data.frame(time = time, data_6 = data)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_7 <- function() {
   first <- stats::rnorm(length(seq(1, 23, by = 0.5)), mean = seq(1, 23, by = 0.5),
                         sd = 1)
@@ -57,6 +84,8 @@ test_data_7 <- function() {
   data.frame(time = time, data_7 = data)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_8 <- function() {
   first_seq <- seq(1, 8.25, by = 0.25)
   second_seq <- seq(8.5, 23, by = 0.5)
@@ -69,14 +98,20 @@ test_data_8 <- function() {
   data.frame(time = time, data_8 = data)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_9 <- function() {
   simulate_segments(c(10, 10), c(1, 5), c(45, 45), "data_9")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_10 <- function() {
   simulate_segments(c(10, 10, 10), c(1, 5, 1), c(30, 30, 30), "data_10")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_11 <- function() {
   first <- stats::arima.sim(model = list(ar = 0.1), n = 45)
   second <- stats::arima.sim(model = list(ar = 0.9999), n = 45)
@@ -85,10 +120,14 @@ test_data_11 <- function() {
   data.frame(time = time, data_11 = data)
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_44 <- function() {
   simulate_segments(c(10, 20, 30), c(5, 5, 5), c(100, 100, 100), "data_44")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_100 <- function() {
   segments <- rep(c(5, 10, 15, 10, 5, 10, 15, 10, 5), each = 1)
   means <- segments
@@ -97,6 +136,8 @@ test_data_100 <- function() {
   simulate_segments(means, sds, lengths, "data_100")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_200 <- function() {
   means <- rep(10, 9)
   sds <- c(10, 5, 1, 10, 1, 10, 10, 5, 1)
@@ -104,6 +145,8 @@ test_data_200 <- function() {
   simulate_segments(means, sds, lengths, "data_200")
 }
 
+#' @rdname test_data_generators
+#' @export
 test_data_300 <- function() {
   simulate_segments(c(10, 20), c(5, 5), c(100, 100), "data_300")
 }

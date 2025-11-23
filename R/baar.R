@@ -1,4 +1,33 @@
 
+#' Bayesian Adaptive Auto-Regression Sampler
+#'
+#' Implements the Metropolis-Hastings sampler for the Bayesian Adaptive
+#' Auto-Regression (BAAR) model. The algorithm searches over candidate
+#' breakpoint configurations for autoregressive time series and returns the
+#' accepted breakpoint sets along with model diagnostics.
+#'
+#' @param k Optional numeric vector of initial breakpoint locations.
+#' @param time Numeric vector of time indices for the observations.
+#' @param data Numeric vector containing the observed time-series values.
+#' @param iterations Number of Metropolis-Hastings samples to draw.
+#' @param burn_in Number of iterations used for burn-in before sampling.
+#' @param make_murder_p Proportion of steps allocated to adding or removing
+#'   breakpoints.
+#' @param percent Width of the jiggle neighbourhood as a proportion of the
+#'   series length.
+#' @param lambda Poisson rate parameter for the breakpoint count prior.
+#' @param jump_p Proportion of move steps that use jump proposals rather than
+#'   jiggle proposals.
+#' @param ar Desired order of the autoregressive model fit to each segment.
+#' @param progress Logical; if \code{TRUE} progress bars are displayed for the
+#'   burn-in and sampling phases.
+#' @param fit_storage Logical; if \code{TRUE} beta and sigma draws are stored.
+#' @return A list containing acceptance statistics, information criteria, and
+#'   sampled breakpoint sets.
+#' @importFrom MASS mvrnorm ginv
+#' @importFrom stats runif
+#' @export
+
 baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p = 0.5,
   percent = 0.02, lambda = 1, jump_p = 0.25, ar = 1, progress = TRUE, fit_storage = FALSE) {
 

@@ -42,6 +42,9 @@
 
 bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
                           progress = interactive()) {
+
+  # confirm all user-supplied controls are scalar and within valid ranges
+
   if (!is.numeric(data)) {
     stop("`data` must be a numeric vector.")
   }
@@ -66,6 +69,8 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
     stop("Series length must exceed the autoregressive order.")
   }
 
+  # translate min interval into an integer segment length bound
+
   min_segment <- max(order + 1L, floor(n * interval))
   min_segment <- max(min_segment, 3L)
   if (min_segment > n) {
@@ -78,6 +83,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
       max_allowed))
   }
 
+  # compute the residual sum of squares for an inclusive segment
   compute_ssr <- function(start, end) {
     if ((end - start + 1L) <= order) {
       return(Inf)
@@ -87,6 +93,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
     sum(res^2)
   }
 
+  # pre-compute SSR for all admissible start/end pairs to accelerate DP search
   ssr_matrix <- matrix(Inf, nrow = n, ncol = n)
   idx <- seq_len(n - min_segment + 1L)
   pb <- NULL
@@ -111,6 +118,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
   dp <- matrix(Inf, nrow = max_segments, ncol = n)
   last_break <- matrix(NA_integer_, nrow = max_segments, ncol = n)
 
+  # seed the DP table with all valid single-segment (no-break) fits
   for (end in seq.int(min_segment, n)) {
     ssr <- ssr_matrix[1, end]
     if (is.finite(ssr)) {
@@ -120,12 +128,14 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
   }
 
   if (max_segments > 1L) {
+    # fill in the DP table for increasing segment counts
     for (segments in 2:max_segments) {
       min_end <- segments * min_segment
       if (min_end > n) {
         break
       }
       for (end in seq.int(min_end, n)) {
+        # evaluate candidate breakpoints that respect the segment length
         best_total <- Inf
         best_break <- NA_integer_
         candidate_breaks <- seq.int((segments - 1L) * min_segment,
@@ -153,6 +163,8 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
     }
   }
 
+  # recover breakpoint sets for any feasible segment count
+
   reconstruct_breaks <- function(segments) {
     if (!is.finite(dp[segments, n])) {
       return(integer(0))
@@ -176,6 +188,8 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
   bic_values <- numeric(max_breaks + 1L)
   breakpoint_sets <- vector("list", length = max_breaks)
 
+  # evaluate the null (no breakpoint) model
+
   null_fit <- FitAR(y, p = order)
   null_res <- stats::na.omit(residuals(null_fit))
   null_ssr <- sum(null_res^2)
@@ -193,6 +207,8 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
       breakpoint_sets[[breaks]] <- integer(0)
       next
     }
+
+    # compute BIC for the DP-optimal segmentation with `breaks` locations
     ssr_values[breaks + 1L] <- ssr_total
     bic_values[breaks + 1L] <- n * log(ssr_total / n) + base_constant +
       log(n) * (order + 2) * segments

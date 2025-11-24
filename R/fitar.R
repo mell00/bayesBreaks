@@ -26,6 +26,7 @@
 #' @export
 #'
 FitAR <- function(z, p, demean = TRUE, ...) {
+  # Validate basic input types and shapes
   if (!is.numeric(z)) {
     stop("`z` must be a numeric vector.")
   }
@@ -33,6 +34,7 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     stop("`p` must be a single, non-negative integer order.")
   }
 
+  # Drop missing values and coerce to a numeric vector
   z <- as.numeric(z)
   z <- stats::na.omit(z)
   n <- length(z)
@@ -40,6 +42,8 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     stop("Series length must exceed the autoregressive order.")
   }
 
+
+  # (optional) remove the sample mean before fitting AR coefficients
   mu_hat <- if (demean) {
     mean(z)
   } else {
@@ -47,6 +51,7 @@ FitAR <- function(z, p, demean = TRUE, ...) {
   }
   y <- z - mu_hat
 
+  # handle AR(0) case directly to avoid unnecessary model fitting
   if (p == 0L) {
     res <- y
     sigma2 <- if (n > 0) {
@@ -71,12 +76,14 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     return(ans)
   }
 
+  # estimate AR(p) coefficients using Yule-Walker equations
   fit <- stats::ar(y, order.max = p, aic = FALSE, demean = FALSE, method = "yw")
   phi <- fit$ar
   if (length(phi) < p) {
     phi <- c(phi, rep(0, p - length(phi)))
   }
 
+  # summarize residual scale and implied Gaussian log-likelihood
   res <- fit$resid
   sigma2 <- mean(stats::na.omit(res)^2)
   loglik <- -0.5 * n * (log(2 * pi) + log(sigma2) + 1)

@@ -1,8 +1,8 @@
 ---
-title: "my-vignette"
+title: "Getting started with bayesBreaks"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{my-vignette}
+  %\VignetteIndexEntry{Getting started with bayesBreaks}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -16,4 +16,5 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(bayesBreaks)
+set.seed(600)  # keep all simulated draws reproducible
 ```

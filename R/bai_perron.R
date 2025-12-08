@@ -65,7 +65,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
 
   y <- stats::na.omit(as.numeric(data))
   n <- length(y)
-  if (n <= order) {
+  if (n <= order || n <= 2L * order) {
     stop("Series length must exceed the autoregressive order.")
   }
 

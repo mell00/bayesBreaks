@@ -34,6 +34,14 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     stop("`p` must be a single, non-negative integer order.")
   }
 
+  tsp_z <- stats::tsp(z)
+  with_tsp <- function(x) {
+    if (is.null(tsp_z) || length(x) == 0L) {
+      return(x)
+    }
+    stats::ts(as.numeric(x), start = tsp_z[1], frequency = tsp_z[3])
+  }
+
   # Drop missing values and coerce to a numeric vector
   z <- as.numeric(z)
   z <- stats::na.omit(z)
@@ -53,18 +61,17 @@ FitAR <- function(z, p, demean = TRUE, ...) {
 
   # handle AR(0) case directly to avoid unnecessary model fitting
   if (p == 0L) {
-    res <- y
+    res <- with_tsp(y)
     sigma2 <- if (n > 0) {
       mean(res^2)
     } else {
       NA_real_
     }
-    loglik <- if (!is.na(sigma2) && sigma2 > 0) {
-      -0.5 * n * (log(2 * pi) + log(sigma2) + 1)
-    } else {
-      NA_real_
+    if (is.na(sigma2) || sigma2 <= 0) {
+      sigma2 <- .Machine$double.eps
     }
-    fits <- z - res
+    loglik <- -0.5 * n * (log(2 * pi) + log(sigma2) + 1)
+    fits <- with_tsp(z - res)
     ans <- list(loglikelihood = loglik, phiHat = numeric(0), sigsqHat = sigma2,
                 muHat = mu_hat, covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = numeric(0),
                 RacfMatrix = matrix(numeric(0), nrow = 0, ncol = 0), LjungBoxQ = NULL,
@@ -76,22 +83,35 @@ FitAR <- function(z, p, demean = TRUE, ...) {
     return(ans)
   }
 
-  # estimate AR(p) coefficients using Yule-Walker equations
-  fit <- stats::ar(y, order.max = p, aic = FALSE, demean = FALSE, method = "yw")
-  phi <- fit$ar
-  if (length(phi) < p) {
-    phi <- c(phi, rep(0, p - length(phi)))
-  }
+  # short-circuit constant series to avoid Yule-Walker failures
+  if (stats::var(y) == 0) {
+    phi <- rep(0, p)
+    res <- with_tsp(rep(0, n))
+    sigma2 <- .Machine$double.eps
+    loglik <- -0.5 * n * (log(2 * pi) + log(sigma2) + 1)
+    fits <- with_tsp(z)
+  } else {
+    # estimate AR(p) coefficients using Yule-Walker equations
+    fit <- stats::ar(y, order.max = p, aic = FALSE, demean = FALSE, method = "yw")
+    phi <- fit$ar
+    if (length(phi) < p) {
+      phi <- c(phi, rep(0, p - length(phi)))
+    }
 
-  # summarize residual scale and implied Gaussian log-likelihood
-  res <- fit$resid
-  sigma2 <- mean(stats::na.omit(res)^2)
-  loglik <- -0.5 * n * (log(2 * pi) + log(sigma2) + 1)
-  fits <- z - res
+    # summarize residual scale and implied Gaussian log-likelihood
+    res <- with_tsp(fit$resid)
+    sigma2 <- mean(stats::na.omit(as.numeric(res))^2)
+    if (is.na(sigma2) || sigma2 <= 0) {
+      sigma2 <- .Machine$double.eps
+    }
+    loglik <- -0.5 * n * (log(2 * pi) + log(sigma2) + 1)
+    fits <- with_tsp(z - res)
+  }
 
   ans <- list(loglikelihood = loglik, phiHat = phi, sigsqHat = sigma2, muHat = mu_hat,
               covHat = matrix(numeric(0), nrow = 0, ncol = 0), zetaHat = phi, RacfMatrix = matrix(numeric(0),
-                                                                                                  nrow = 0, ncol = 0), LjungBoxQ = NULL, res = res, resid = res, fits = fits,
+                                                                                                  nrow = 0, ncol = 0), LjungBoxQ
+              = NULL, res = res, resid = res, fits = fits,
               SubsetQ = FALSE, pvec = seq_len(p), demean = demean, FitMethod = "YW", iterationCount = 0L,
               convergence = 0L, MeanMLE = FALSE, tsp = stats::tsp(z), call = match.call(),
               ARModel = "ARz", DataTitle = attr(z, "title"), ModelTitle = sprintf("AR(%d)",

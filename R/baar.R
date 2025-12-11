@@ -77,6 +77,9 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
       model <- fit_segment(full_data[, 2])
       see <- sum(stats::na.omit(extract_residuals(model))^2)
       s2 <- see/n
+      if (!is.finite(s2) || s2 <= 0) {
+        s2 <- .Machine$double.eps
+      }
       sum_loglik <- (-1 * n/2) * (log(2 * pi) + log(s2) + 1)
     } else {
       for (i in 2:length(k_ends)) {
@@ -88,6 +91,9 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
         sub_n <- length(y_values)
         see <- sum(stats::na.omit(extract_residuals(model))^2)
         s2 <- see/sub_n
+        if (!is.finite(s2) || s2 <= 0) {
+          s2 <- .Machine$double.eps
+        }
         sub_loglik <- (-1 * sub_n/2) * (log(2 * pi) + log(s2) + 1)
         sum_loglik <- sum_loglik + sub_loglik
       }
@@ -323,7 +329,7 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     ratio <- (-1 * delta_bic/2) + log(birth_old_to_new_ratio) - log(death_new_to_old_ratio)
     u_ratio <- log(runif(1))  # random number from 0 to 1 taken from a uniform distribution and then log transformed
 
-    if (abs(delta_bic) == Inf) {
+    if (!is.finite(delta_bic) || !is.finite(ratio)) {
       # safe guard against random models creating infinite ratios
       k_ends <- k_ends  # old
     } else if (ratio >= u_ratio) {
@@ -466,7 +472,7 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
       log(q2 * dpois(length(k_ends) - 2, lambda)))
     u_ratio <- log(runif(1))  # random number from 0 to 1 taken from a uniform distribution and then log transformed
 
-    if (abs(delta_bic) == Inf) {
+    if (!is.finite(delta_bic) || !is.finite(ratio)) {
       # safe guard against random models creating infinite ratios
       k_ends <- k_ends  # old
       bic <- (-2 * old_loglik + log(n) * (length(k_ends) - 1) * (3 + ar))

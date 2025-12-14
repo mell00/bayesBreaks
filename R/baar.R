@@ -377,8 +377,8 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
         return(list(coef = coef, var.coef = diag(1e+06, ar + 1)))
       }
 
-      tryCatch(arima(series, method = "ML", order = c(ar, 0, 0)),
-               error = function(e) arima(series, method = "CSS", order = c(ar, 0, 0)))
+      tryCatch(arima(series, method = "ML", order = c(ar, 0, 0)), error = function(e) arima(series,
+                                                                                            method = "CSS", order = c(ar, 0, 0)))
     }
     model <- suppressWarnings(alt_arima(full_data, ar))
     informationless <- matrix(0, ncol = (ar + 1), nrow = (ar + 1))
@@ -626,16 +626,31 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
 
   k_vec <- stats::na.omit(k)
 
+  if (fit_storage == TRUE) {
+    fallback_fit <- rep(NA_real_, n)
+    if (length(k_vec) > 0) {
+      k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
+      for (m in 2:length(k_ends_fallback)) {
+        start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
+        end_idx <- k_ends_fallback[m]
+        fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+      }
+    }
+    mse_val <- mean((full_data[, 2] - fallback_fit)^2)
+  }
+
   if (nrow(all_k_best) < iterations) {
+    pad_n <- iterations - nrow(all_k_best)
     k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
     bic_val <- (-2 * fitMetrics(k_ends_fallback, full_data) + log(n) * (length(k_ends_fallback) -
                                                                           1) * (3 + ar))
 
-    pad_n <- iterations - nrow(all_k_best)
-    if (ncol(all_k_best) == 0 && length(k_vec) > 0) {
-      all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
-    } else if (ncol(all_k_best) == 0) {
-      all_k_best <- data.frame(matrix(ncol = 0, nrow = iterations))
+    if (ncol(all_k_best) == 0) {
+      if (length(k_vec) > 0) {
+        all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
+      } else {
+        all_k_best <- data.frame(matrix(ncol = 0, nrow = iterations))
+      }
     } else {
       pad_mat <- if (length(k_vec) > 0 && length(k_vec) == ncol(all_k_best)) {
         matrix(rep(k_vec, each = pad_n), nrow = pad_n)
@@ -646,20 +661,11 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     }
 
     if (nrow(all_BIC) < iterations) {
-      all_BIC <- rbind(all_BIC, data.frame(BIC = rep(bic_val, iterations - nrow(all_BIC))))
+      pad_bic <- data.frame(BIC = rep(bic_val, iterations - nrow(all_BIC)))
+      all_BIC <- rbind(all_BIC, pad_bic)
     }
 
     if (fit_storage == TRUE && nrow(all_fits) < iterations) {
-      fallback_fit <- rep(NA_real_, n)
-      if (length(k_ends_fallback) > 1) {
-        for (m in 2:length(k_ends_fallback)) {
-          start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
-          end_idx <- k_ends_fallback[m]
-          fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
-        }
-      }
-
-      mse_val <- mean((full_data[, 2] - fallback_fit)^2)
       if (nrow(all_fits) == 0) {
         all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
       } else {
@@ -673,11 +679,45 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     }
   }
 
+  if (ncol(all_k_best) > 0 && length(k_vec) == ncol(all_k_best)) {
+    empty_rows <- which(rowSums(!is.na(all_k_best)) == 0)
+    if (length(empty_rows) > 0) {
+      replacement <- matrix(rep(k_vec, each = length(empty_rows)), nrow = length(empty_rows))
+      all_k_best[empty_rows, ] <- replacement
+
+      if (fit_storage == TRUE) {
+        if (nrow(all_fits) < max(empty_rows)) {
+          pad_needed <- max(empty_rows) - nrow(all_fits)
+          pad_fit <- matrix(rep(fallback_fit, each = pad_needed), nrow = pad_needed, byrow = TRUE)
+          all_fits <- rbind(all_fits, pad_fit)
+          all_MSE <- c(all_MSE, rep(mse_val, pad_needed))
+          beta_draws <- c(beta_draws, replicate(pad_needed, data.frame(), simplify = FALSE))
+          sigma_draws <- c(sigma_draws, replicate(pad_needed, data.frame(), simplify = FALSE))
+        }
+
+        all_fits[empty_rows, ] <- matrix(rep(fallback_fit, each = length(empty_rows)), nrow = length(empty_rows),
+                                         byrow = TRUE)
+        if (length(all_MSE) < max(empty_rows)) {
+          all_MSE <- c(all_MSE, rep(mse_val, max(empty_rows) - length(all_MSE)))
+        }
+        all_MSE[empty_rows] <- mse_val
+      }
+    }
+  }
+
   # getting distribution of k (number of breakpoints)
   if (nrow(all_k_best) > 0) {
-    num_bkpts <- rowSums(!is.na(all_k_best))
+    if (ncol(all_k_best) == 0) {
+      num_bkpts <- rep(0, nrow(all_k_best))
+    } else {
+      num_bkpts <- rowSums(!is.na(all_k_best))
+    }
   } else {
-    num_bkpts <- numeric(0)
+    num_bkpts <- rep(0, iterations)
+  }
+
+  if (ncol(all_BIC) == 1) {
+    colnames(all_BIC) <- "BIC"
   }
 
 

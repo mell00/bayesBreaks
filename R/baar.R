@@ -369,8 +369,16 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
   # setting up priors for beta draws (define what b_0 and B_0 are)
   if (fit_storage == TRUE) {
     alt_arima <- function(full_data, ar) {
-      tryCatch(arima(full_data[, 2], method = "ML", order = c(ar, 0, 0)), error = function(e) arima(full_data[,
-        2], method = "CSS", order = c(ar, 0, 0)))
+      series <- full_data[, 2]
+      if (stats::sd(series) == 0) {
+        mean_val <- mean(series)
+        coef <- c(rep(0, ar), mean_val)
+        names(coef) <- c(paste0("ar", seq_len(ar)), "intercept")
+        return(list(coef = coef, var.coef = diag(1e+06, ar + 1)))
+      }
+
+      tryCatch(arima(series, method = "ML", order = c(ar, 0, 0)),
+               error = function(e) arima(series, method = "CSS", order = c(ar, 0, 0)))
     }
     model <- suppressWarnings(alt_arima(full_data, ar))
     informationless <- matrix(0, ncol = (ar + 1), nrow = (ar + 1))
@@ -615,6 +623,32 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
   final.propose <- c(a.count, s.count, m.count, j.count)
   final.accept <- c(add.accept.count, sub.accept.count, move.accept.count, jiggle.accept.count)
   colnames(all_BIC) = "BIC"
+
+  k_vec <- stats::na.omit(k)
+
+  if (nrow(all_k_best) == 0 && length(k_vec) > 0) {
+    k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
+    bic_val <- (-2 * fitMetrics(k_ends_fallback, full_data) + log(n) * (length(k_ends_fallback) -
+                                                                          1) * (3 + ar))
+
+    all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
+    all_BIC <- data.frame(BIC = rep(bic_val, iterations))
+
+    if (fit_storage == TRUE) {
+      fallback_fit <- rep(NA_real_, n)
+      for (m in 2:length(k_ends_fallback)) {
+        start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
+        end_idx <- k_ends_fallback[m]
+        fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+      }
+
+      mse_val <- mean((full_data[, 2] - fallback_fit)^2)
+      all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
+      all_MSE <- rep(mse_val, iterations)
+      beta_draws <- replicate(iterations, data.frame(), simplify = FALSE)
+      sigma_draws <- replicate(iterations, data.frame(), simplify = FALSE)
+    }
+  }
 
   # getting distribution of k (number of breakpoints)
   if (nrow(all_k_best) > 0) {

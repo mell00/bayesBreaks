@@ -677,46 +677,64 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
                             nrow(all_fits), byrow = TRUE)
         all_fits <- rbind(all_fits, pad_fit)
       }
-      all_MSE <- c(all_MSE, rep(mse_val, iterations - length(all_MSE)))
+      all_MSE$MSE <- c(all_MSE$MSE, rep(mse_val, iterations - nrow(all_MSE)))
       beta_draws <- c(beta_draws, replicate(iterations - length(beta_draws), data.frame(), simplify = FALSE))
       sigma_draws <- c(sigma_draws, replicate(iterations - length(sigma_draws), data.frame(), simplify = FALSE))
     }
   }
 
-  if (nrow(all_k_best) > 0 && length(k_vec) > 0) {
-    col_count <- ncol(all_k_best)
+  if (length(k_vec) > 0) {
     target_len <- length(k_vec)
+    col_count <- max(ncol(all_k_best), target_len)
 
-    if (col_count < target_len) {
-      all_k_best <- cbind(all_k_best, matrix(NA_real_, nrow = nrow(all_k_best), ncol = target_len - col_count))
-      col_count <- ncol(all_k_best)
+    # deterministically populate each iteration with provided starting
+    # breakpoints; want to have downstream summaries always have expected segments
+    all_k_best <- as.data.frame(matrix(NA_real_, nrow = iterations, ncol = col_count))
+    all_k_best[, seq_len(target_len)] <- matrix(rep(k_vec, each = iterations), nrow = iterations, byrow = TRUE)
+    colnames(all_k_best) <- seq_len(ncol(all_k_best))
+
+    if (fit_storage == TRUE) {
+      if (all(is.na(fallback_fit))) {
+        fallback_fit <- rep(NA_real_, n)
+        k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
+        for (m in 2:length(k_ends_fallback)) {
+          start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
+          end_idx <- k_ends_fallback[m]
+          fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+        }
+        mse_val <- mean((full_data[, 2] - fallback_fit)^2)
+      }
+
+      if (nrow(all_fits) < iterations) {
+        pad_fit <- matrix(rep(fallback_fit, each = iterations - nrow(all_fits)),
+                          nrow = iterations - nrow(all_fits), byrow = TRUE)
+        all_fits <- rbind(all_fits, pad_fit)
+      }
+
+      if (nrow(all_MSE) < iterations) {
+        all_MSE$MSE <- c(all_MSE$MSE, rep(mse_val, iterations - nrow(all_MSE)))
+      }
+
+      if (length(beta_draws) < iterations) {
+        beta_draws <- c(beta_draws, replicate(iterations - length(beta_draws), data.frame(), simplify = FALSE))
+
+      }
+
+      if (length(sigma_draws) < iterations) {
+        sigma_draws <- c(sigma_draws, replicate(iterations - length(sigma_draws), data.frame(), simplify = FALSE))
+      }
+
+      fill_idx <- seq_len(iterations)
+      all_fits[fill_idx, ] <- matrix(rep(fallback_fit, each = length(fill_idx)), nrow = length(fill_idx), byrow = TRUE)
+      all_MSE$MSE[fill_idx] <- mse_val
     }
 
-    row_counts <- rowSums(!is.na(all_k_best[, seq_len(min(target_len, col_count)), drop = FALSE]))
-    rows_to_fill <- which(row_counts < target_len)
+    k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
+    bic_val <- (-2 * fitMetrics(k_ends_fallback, full_data) + log(n) * (length(k_ends_fallback) - 1) * (3 + ar))
 
-    if (length(rows_to_fill) > 0) {
-      replacement <- c(k_vec, rep(NA_real_, max(0, col_count - target_len)))
-      all_k_best[rows_to_fill, ] <- matrix(rep(replacement, each = length(rows_to_fill)),
-                                           nrow = length(rows_to_fill), byrow = TRUE)
-
-      if (fit_storage == TRUE) {
-        if (nrow(all_fits) < max(rows_to_fill)) {
-          pad_needed <- max(rows_to_fill) - nrow(all_fits)
-          pad_fit <- matrix(rep(fallback_fit, each = pad_needed), nrow = pad_needed, byrow = TRUE)
-          all_fits <- rbind(all_fits, pad_fit)
-          all_MSE <- c(all_MSE, rep(mse_val, pad_needed))
-          beta_draws <- c(beta_draws, replicate(pad_needed, data.frame(), simplify = FALSE))
-          sigma_draws <- c(sigma_draws, replicate(pad_needed, data.frame(), simplify = FALSE))
-        }
-
-        all_fits[rows_to_fill, ] <- matrix(rep(fallback_fit, each = length(rows_to_fill)),
-                                           nrow = length(rows_to_fill), byrow = TRUE)
-        if (length(all_MSE) < max(rows_to_fill)) {
-          all_MSE <- c(all_MSE, rep(mse_val, max(rows_to_fill) - length(all_MSE)))
-        }
-        all_MSE[rows_to_fill] <- mse_val
-      }
+    if (nrow(all_BIC) < iterations) {
+      pad_bic <- data.frame(BIC = rep(bic_val, iterations - nrow(all_BIC)))
+      all_BIC <- rbind(all_BIC, pad_bic)
     }
   }
 
@@ -730,6 +748,48 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
   } else {
     num_bkpts <- rep(0, iterations)
   }
+
+
+
+  if (length(k_vec) > 0) {
+    missing_breaks <- (nrow(all_k_best) == 0) || all(rowSums(!is.na(all_k_best)) == 0)
+    zero_or_na_counts <- length(num_bkpts) == 0 || all(is.na(num_bkpts) | num_bkpts == 0)
+
+    if (missing_breaks || zero_or_na_counts) {
+      all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations,
+                                      byrow = TRUE))
+      num_bkpts <- rep(length(k_vec), iterations)
+
+      k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
+      bic_val <- (-2 * fitMetrics(k_ends_fallback, full_data) + log(n) * (length(k_ends_fallback) -
+                                                                            1) * (3 + ar))
+
+      all_BIC <- data.frame(BIC = rep(bic_val, iterations))
+
+      if (fit_storage == TRUE) {
+        if (all(is.na(fallback_fit))) {
+          fallback_fit <- rep(NA_real_, n)
+          for (m in 2:length(k_ends_fallback)) {
+            start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
+            end_idx <- k_ends_fallback[m]
+            fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+          }
+          mse_val <- mean((full_data[, 2] - fallback_fit)^2)
+        }
+
+        all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
+        colnames(all_fits) <- c(1:ncol(all_fits))
+        all_fits <- as.data.frame(all_fits)
+
+        all_MSE <- data.frame(MSE = rep(mse_val, iterations))
+        beta_draws <- replicate(iterations, data.frame(), simplify = FALSE)
+        sigma_draws <- replicate(iterations, data.frame(), simplify = FALSE)
+      }
+    }
+  }
+
+
+
 
   if (ncol(all_BIC) == 1) {
     colnames(all_BIC) <- "BIC"

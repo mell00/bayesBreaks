@@ -45,9 +45,10 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     stop("Jump proportion must be less than or equal to 1.")
   }
 
+  input_k <- stats::na.omit(k)
   full_data <- cbind(seq_along(as.numeric(time)), as.numeric(data))  # combining time and data inputs
   n <- length(full_data[, 1])  # number of observations
-  k_ends <- c(min(full_data[, 1]), stats::na.omit(k), n)  # adding end points to k
+  k_ends <- c(min(full_data[, 1]), input_k, n)  # adding end points to k
 
   extract_residuals <- function(model) {
     res <- NULL
@@ -602,6 +603,9 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     } else {
       all_MSE <- data.frame(MSE = numeric(0))
     }
+    if (nrow(all_MSE) < iterations) {
+      all_MSE <- rbind(all_MSE, data.frame(MSE = rep(NA_real_, iterations - nrow(all_MSE))))
+    }
     if (ncol(all_fits) > 0) {
       colnames(all_fits) <- c(1:ncol(all_fits))
       all_fits <- as.data.frame(all_fits)
@@ -624,7 +628,7 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
   final.accept <- c(add.accept.count, sub.accept.count, move.accept.count, jiggle.accept.count)
   colnames(all_BIC) = "BIC"
 
-  k_vec <- stats::na.omit(k)
+  k_vec <- input_k
 
   if (fit_storage == TRUE) {
     fallback_fit <- rep(NA_real_, n)
@@ -679,15 +683,26 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     }
   }
 
-  if (ncol(all_k_best) > 0 && length(k_vec) == ncol(all_k_best)) {
-    empty_rows <- which(rowSums(!is.na(all_k_best)) == 0)
-    if (length(empty_rows) > 0) {
-      replacement <- matrix(rep(k_vec, each = length(empty_rows)), nrow = length(empty_rows))
-      all_k_best[empty_rows, ] <- replacement
+  if (nrow(all_k_best) > 0 && length(k_vec) > 0) {
+    col_count <- ncol(all_k_best)
+    target_len <- length(k_vec)
+
+    if (col_count < target_len) {
+      all_k_best <- cbind(all_k_best, matrix(NA_real_, nrow = nrow(all_k_best), ncol = target_len - col_count))
+      col_count <- ncol(all_k_best)
+    }
+
+    row_counts <- rowSums(!is.na(all_k_best[, seq_len(min(target_len, col_count)), drop = FALSE]))
+    rows_to_fill <- which(row_counts < target_len)
+
+    if (length(rows_to_fill) > 0) {
+      replacement <- c(k_vec, rep(NA_real_, max(0, col_count - target_len)))
+      all_k_best[rows_to_fill, ] <- matrix(rep(replacement, each = length(rows_to_fill)),
+                                           nrow = length(rows_to_fill), byrow = TRUE)
 
       if (fit_storage == TRUE) {
-        if (nrow(all_fits) < max(empty_rows)) {
-          pad_needed <- max(empty_rows) - nrow(all_fits)
+        if (nrow(all_fits) < max(rows_to_fill)) {
+          pad_needed <- max(rows_to_fill) - nrow(all_fits)
           pad_fit <- matrix(rep(fallback_fit, each = pad_needed), nrow = pad_needed, byrow = TRUE)
           all_fits <- rbind(all_fits, pad_fit)
           all_MSE <- c(all_MSE, rep(mse_val, pad_needed))
@@ -695,12 +710,12 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
           sigma_draws <- c(sigma_draws, replicate(pad_needed, data.frame(), simplify = FALSE))
         }
 
-        all_fits[empty_rows, ] <- matrix(rep(fallback_fit, each = length(empty_rows)), nrow = length(empty_rows),
-                                         byrow = TRUE)
-        if (length(all_MSE) < max(empty_rows)) {
-          all_MSE <- c(all_MSE, rep(mse_val, max(empty_rows) - length(all_MSE)))
+        all_fits[rows_to_fill, ] <- matrix(rep(fallback_fit, each = length(rows_to_fill)),
+                                           nrow = length(rows_to_fill), byrow = TRUE)
+        if (length(all_MSE) < max(rows_to_fill)) {
+          all_MSE <- c(all_MSE, rep(mse_val, max(rows_to_fill) - length(all_MSE)))
         }
-        all_MSE[empty_rows] <- mse_val
+        all_MSE[rows_to_fill] <- mse_val
       }
     }
   }

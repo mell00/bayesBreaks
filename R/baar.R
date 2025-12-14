@@ -626,27 +626,50 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
 
   k_vec <- stats::na.omit(k)
 
-  if (nrow(all_k_best) == 0 && length(k_vec) > 0) {
+  if (nrow(all_k_best) < iterations) {
     k_ends_fallback <- c(min(full_data[, 1]), k_vec, n)
     bic_val <- (-2 * fitMetrics(k_ends_fallback, full_data) + log(n) * (length(k_ends_fallback) -
                                                                           1) * (3 + ar))
 
-    all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
-    all_BIC <- data.frame(BIC = rep(bic_val, iterations))
+    pad_n <- iterations - nrow(all_k_best)
+    if (ncol(all_k_best) == 0 && length(k_vec) > 0) {
+      all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
+    } else if (ncol(all_k_best) == 0) {
+      all_k_best <- data.frame(matrix(ncol = 0, nrow = iterations))
+    } else {
+      pad_mat <- if (length(k_vec) > 0 && length(k_vec) == ncol(all_k_best)) {
+        matrix(rep(k_vec, each = pad_n), nrow = pad_n)
+      } else {
+        matrix(NA_real_, nrow = pad_n, ncol = ncol(all_k_best))
+      }
+      all_k_best <- rbind(all_k_best, pad_mat)
+    }
 
-    if (fit_storage == TRUE) {
+    if (nrow(all_BIC) < iterations) {
+      all_BIC <- rbind(all_BIC, data.frame(BIC = rep(bic_val, iterations - nrow(all_BIC))))
+    }
+
+    if (fit_storage == TRUE && nrow(all_fits) < iterations) {
       fallback_fit <- rep(NA_real_, n)
-      for (m in 2:length(k_ends_fallback)) {
-        start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
-        end_idx <- k_ends_fallback[m]
-        fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+      if (length(k_ends_fallback) > 1) {
+        for (m in 2:length(k_ends_fallback)) {
+          start_idx <- if (m > 2) k_ends_fallback[m - 1] + 1 else k_ends_fallback[m - 1]
+          end_idx <- k_ends_fallback[m]
+          fallback_fit[start_idx:end_idx] <- mean(full_data[start_idx:end_idx, 2])
+        }
       }
 
       mse_val <- mean((full_data[, 2] - fallback_fit)^2)
-      all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
-      all_MSE <- rep(mse_val, iterations)
-      beta_draws <- replicate(iterations, data.frame(), simplify = FALSE)
-      sigma_draws <- replicate(iterations, data.frame(), simplify = FALSE)
+      if (nrow(all_fits) == 0) {
+        all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
+      } else {
+        pad_fit <- matrix(rep(fallback_fit, each = iterations - nrow(all_fits)), nrow = iterations -
+                            nrow(all_fits), byrow = TRUE)
+        all_fits <- rbind(all_fits, pad_fit)
+      }
+      all_MSE <- c(all_MSE, rep(mse_val, iterations - length(all_MSE)))
+      beta_draws <- c(beta_draws, replicate(iterations - length(beta_draws), data.frame(), simplify = FALSE))
+      sigma_draws <- c(sigma_draws, replicate(iterations - length(sigma_draws), data.frame(), simplify = FALSE))
     }
   }
 

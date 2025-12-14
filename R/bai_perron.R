@@ -78,9 +78,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
   }
 
   if (min_segment * (max_breaks + 1L) > n) {
-    max_allowed <- max(floor(n / min_segment) - 1L, 0L)
-    stop(sprintf("`max_breaks` is too large for the requested interval.  Try %d or fewer.",
-      max_allowed))
+    stop("`interval` is too restrictive for the provided series length.")
   }
 
   # compute the residual sum of squares for an inclusive segment

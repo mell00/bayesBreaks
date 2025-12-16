@@ -25,3 +25,30 @@ if (requireNamespace("bayesBreaks", quietly = TRUE)) {
 }
 set.seed(600)  # keep all simulated draws reproducible
 ```
+
+## Overview
+
+The `bayesBreaks` package combines an autoregressive time-series fitter, a
+frequentist Bai–Perron style grid search, and a Bayesian breakpoint sampler.
+This vignette walks through each component using the built-in simulated
+datasets and shows how you would apply the same calls to your own series.
+
+## Exploring the shipped test data
+
+All of the development datasets are bundled in `data/` and can be loaded with
+`data(<name>)`. They are two-column data frames with `time` indices and
+a single response column. Below we visualize `data_2`, which contains two
+clearly separated mean shifts.
+
+```{r}
+data(data_2)
+plot(
+  data_2$time, data_2$data_2,
+  type = "l", col = "#1E88E5",
+  xlab = "Time", ylab = "Value",
+  main = "Example series: data_2"
+)
+```
+
+If you want to generate new draws on the fly, you can also call the helper
+functions (for example `test_data_2()`) directly after setting your own seed.

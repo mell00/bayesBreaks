@@ -50,6 +50,12 @@ frequentist Bai–Perron style grid search, and a Bayesian breakpoint sampler.
 This vignette walks through each component using the built-in simulated
 datasets and shows how you would apply the same calls to your own series.
 
+This vignette walks through a short workflow:
+
+1. simulate a toy series with known breakpoints,
+2. run the Bai-Perron search as a baseline, and
+3. sample breakpoint configurations with `baar()`.
+
 ## Exploring the shipped test data
 
 All of the development datasets are bundled in `data/` and can be loaded with

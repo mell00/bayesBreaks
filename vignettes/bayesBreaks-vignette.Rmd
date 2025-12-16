@@ -223,3 +223,9 @@ Even with a short run, the BAAR sampler concentrates mass near the two true
 breakpoints and agrees with the Bai-Perron search on the preferred breakpoint
 count. Increasing the number of iterations and the autoregressive order allows
 for richer fits when analysing real data.
+
+## Stress-testing on noisier series
+
+The package includes more extreme toy datasets that expose challenges such as
+large jumps and near-unit-root behaviour. They provide quick checks that the
+baseline and sampler still recover the main structure.

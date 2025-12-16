@@ -141,4 +141,85 @@ ggplot(bic_df, aes(breaks, bic)) +
   plot_theme()
 ```
 
+## Sampling breakpoints with BAAR
 
+`baar()` explores breakpoint configurations with a Metropolis-Hastings sampler
+that proposes adding, removing, moving, and jiggling breakpoints. For vignette
+speed we keep the iteration count small; for real analyses you will want longer
+chains and multiple seeds.
+
+```{r baar}
+baar_fit <- baar(
+  time = series$time,
+  data = series$data_2,
+  iterations = 200,
+  burn_in = 50,
+  make_murder_p = 0.5,
+  percent = 0.05,
+  lambda = 1,
+  jump_p = 0.25,
+  ar = 0,
+  progress = FALSE,
+  fit_storage = FALSE
+)
+str(baar_fit)
+```
+
+The sampler returns the sampled breakpoint sets (`Breakpoints`) and a vector
+tracking the number of breakpoints per draw (`NumBkpts`). We can examine the
+posterior distribution over breakpoint counts and the empirical frequency of
+individual break locations.
+
+```{r baar-summary, fig.height=4, fig.width=7}
+count_df <- as.data.frame(table(baar_fit$NumBkpts))
+names(count_df) <- c("breaks", "frequency")
+
+ggplot(count_df, aes(as.numeric(as.character(breaks)), frequency)) +
+  geom_col(fill = "#1A85FF", width = 0.7) +
+  labs(
+    title = "Posterior mass on breakpoint counts",
+    x = "number of breakpoints",
+    y = "posterior frequency"
+  ) +
+  scale_x_continuous(breaks = unique(as.numeric(as.character(count_df$breaks)))) +
+  plot_theme()
+```
+
+```{r baar-breaks, fig.height=4, fig.width=7, tidy=FALSE}
+# gather breakpoint positions from each draw
+all_breaks <- unlist(baar_fit$Breakpoints)
+break_df <- data.frame(breaks = all_breaks)
+
+true_breaks <- data.frame(breaks = c(30, 60))
+
+bp_lines <- data.frame(
+  breaks = c(bp$breakpoints, true_breaks$breaks),
+  source = c(
+    rep("Bai-Perron", length(bp$breakpoints)),
+    rep("true", nrow(true_breaks))
+  )
+)
+
+ggplot(break_df, aes(breaks)) +
+  geom_histogram(
+    breaks = seq(0.5, max(series$time) + 0.5, by = 1),
+    fill = "#7DB0FF", color = "white"
+  ) +
+  geom_vline(
+    data = bp_lines,
+    aes(xintercept = breaks, linetype = source, color = source),
+    linewidth = 0.9,
+    show.legend = TRUE
+  ) +
+  labs(
+    title = "Empirical breakpoint locations",
+    x = "time index",
+    y = "posterior count"
+  ) +
+  plot_theme()
+```
+
+Even with a short run, the BAAR sampler concentrates mass near the two true
+breakpoints and agrees with the Bai-Perron search on the preferred breakpoint
+count. Increasing the number of iterations and the autoregressive order allows
+for richer fits when analysing real data.

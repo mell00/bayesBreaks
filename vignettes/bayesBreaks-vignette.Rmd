@@ -229,3 +229,89 @@ for richer fits when analysing real data.
 The package includes more extreme toy datasets that expose challenges such as
 large jumps and near-unit-root behaviour. They provide quick checks that the
 baseline and sampler still recover the main structure.
+
+### Wide variance swings
+
+`test_data_4()` introduces three mean shifts plus substantial noise, making the
+true changes less visually obvious than in the earlier example.
+
+```{r simulate-extreme-variance}
+noisy <- test_data_4()
+ggplot(noisy, aes(time, data_4)) +
+  geom_line(color = "#2F3E63", linewidth = 0.6) +
+  geom_vline(xintercept = c(30, 60),
+             color = "#C73339", linetype = "dashed", linewidth = 0.8) +
+  labs(
+    title = "Noisy series with three broad shifts",
+    x = "time",
+    y = "value"
+  ) +
+  plot_theme()
+```
+
+Even under high variance, the Bai-Perron BIC search still points to two
+breakpoints when the autoregressive order stays low.
+
+```{r bai-perron-extreme-variance}
+bp_noisy <- bai_perron_ar(noisy$data_4, order = 0, interval = 0.1,
+                         max_breaks = 4, progress = FALSE)
+bic_noisy <- data.frame(breaks = seq_along(bp_noisy$BIC) - 1,
+                        bic = bp_noisy$BIC)
+
+ggplot(bic_noisy, aes(breaks, bic)) +
+  geom_line(color = "#2F3E63", linewidth = 0.7) +
+  geom_point(color = "#2F3E63", size = 2.5) +
+  geom_vline(xintercept = bic_noisy$breaks[which.min(bic_noisy$bic)],
+             linetype = "dashed", color = "#1A85FF", linewidth = 0.9) +
+  labs(
+    title = "Bai-Perron search on noisy series",
+    x = "number of breakpoints",
+    y = "BIC"
+  ) +
+  plot_theme()
+```
+
+Running a short BAAR chain still concentrates posterior mass near the break
+locations despite the noise.
+
+```{r baar-extreme-variance}
+baar_noisy <- baar(
+  time = noisy$time,
+  data = noisy$data_4,
+  iterations = 300,
+  burn_in = 75,
+  make_murder_p = 0.5,
+  percent = 0.05,
+  lambda = 1,
+  jump_p = 0.25,
+  ar = 0,
+  progress = FALSE,
+  fit_storage = FALSE
+)
+
+noisy_break_df <- data.frame(breaks = unlist(baar_noisy$Breakpoints))
+
+noisy_lines <- data.frame(
+  breaks = c(bp_noisy$breakpoints, 30, 60),
+  source = c(rep("Bai-Perron", length(bp_noisy$breakpoints)), rep("true", 2))
+)
+
+ggplot(noisy_break_df, aes(breaks)) +
+  geom_histogram(
+    breaks = seq(0.5, max(noisy$time) + 0.5, by = 1),
+    fill = "#7DB0FF", color = "white"
+  ) +
+  geom_vline(
+    data = noisy_lines,
+    aes(xintercept = breaks, linetype = source, color = source),
+    linewidth = 0.9
+  ) +
+  scale_color_manual(values = c("Bai-Perron" = "#1A85FF", "true" = "#C73339")) +
+  scale_linetype_manual(values = c("Bai-Perron" = "dashed", "true" = "dotdash")) +
+  labs(
+    title = "Posterior breakpoints on noisy series",
+    x = "time index",
+    y = "posterior count"
+  ) +
+  plot_theme()
+```

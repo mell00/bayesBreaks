@@ -14,7 +14,14 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
-library(bayesBreaks)
+```{r setup, include = FALSE}
+if (requireNamespace("bayesBreaks", quietly = TRUE)) {
+  library(bayesBreaks)
+} else {
+  if (!requireNamespace("pkgload", quietly = TRUE)) {
+    stop("install bayesBreaks or pkgload to knit this vignette")
+  }
+  pkgload::load_all(export_all = FALSE)
+}
 set.seed(600)  # keep all simulated draws reproducible
 ```

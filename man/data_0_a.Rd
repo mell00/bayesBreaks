@@ -64,7 +64,39 @@ An object of class \code{data.frame} with 200 rows and 2 columns.
 Generated via functions in \code{\link{test_data_generators}}.
 }
 \usage{
-data_0_a
+data(data_0_a)
+
+data(data_0_b)
+
+data(data_1)
+
+data(data_2)
+
+data(data_3)
+
+data(data_4)
+
+data(data_5)
+
+data(data_6)
+
+data(data_7)
+
+data(data_8)
+
+data(data_9)
+
+data(data_10)
+
+data(data_11)
+
+data(data_44)
+
+data(data_100)
+
+data(data_200)
+
+data(data_300)
 
 data_0_b
 

@@ -106,4 +106,39 @@ ggplot(series, aes(time, data_2)) +
   plot_theme()
 ```
 
+## Frequentist baseline with Bai-Perron
+
+The `bai_perron_ar()` helper evaluates all admissible segmentations up to a
+user-specified maximum number of breakpoints and returns the configuration with
+the smallest Bayesian information criterion (BIC). Using a low autoregressive
+order keeps the example quick to run.
+
+```{r bai-perron}
+bp <- bai_perron_ar(data = series$data_2, order = 0, interval = 0.1,
+                    max_breaks = 3, progress = FALSE)
+bp$breakpoints
+bp$BIC
+```
+
+The BIC curve highlights that the two-break model is preferred for this series.
+
+```{r bai-perron-plot, fig.height=3.8, fig.width=6.5}
+bic_df <- data.frame(
+  breaks = seq_along(bp$BIC) - 1,
+  bic = bp$BIC
+)
+
+ggplot(bic_df, aes(breaks, bic)) +
+  geom_line(color = "#2F3E63", linewidth = 0.7) +
+  geom_point(color = "#2F3E63", size = 2.5) +
+  geom_vline(xintercept = bic_df$breaks[which.min(bic_df$bic)],
+             linetype = "dashed", color = "#1A85FF", linewidth = 0.9) +
+  labs(
+    title = "Bai-Perron fit preferred a two-break model",
+    x = "number of breakpoints",
+    y = "BIC"
+  ) +
+  plot_theme()
+```
+
 

@@ -25,7 +25,7 @@
 #' @return A list containing acceptance statistics, information criteria, and
 #'   sampled breakpoint sets.
 #' @importFrom MASS mvrnorm ginv
-#' @importFrom stats runif
+#' @importFrom stats runif dpois arima residuals
 #' @export
 
 baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p = 0.5,
@@ -315,13 +315,13 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     }
 
 
-    birth_old_to_new_ratio <- (factorial(starting_bkpts + 1) * q2 * (dpois(length(k_ends_new) -
+    birth_old_to_new_ratio <- (factorial(starting_bkpts + 1) * q2 * (stats::dpois(length(k_ends_new) -
       2, lambda)))/(old_new_product_birth(starting_bkpts))
-    birth_new_to_old_ratio <- (factorial(starting_bkpts) * q1 * (dpois(length(k_ends) -
+    birth_new_to_old_ratio <- (factorial(starting_bkpts) * q1 * (stats::dpois(length(k_ends) -
       2, lambda)))/(product_death(starting_bkpts))
-    death_new_to_old_ratio <- (factorial(starting_bkpts) * q2 * (dpois(length(k_ends) -
+    death_new_to_old_ratio <- (factorial(starting_bkpts) * q2 * (stats::dpois(length(k_ends) -
       2, lambda)))/(product_death(starting_bkpts))
-    death_old_to_new_ratio <- (factorial(starting_bkpts - 1) * make_k * (dpois(length(k_ends_new) -
+    death_old_to_new_ratio <- (factorial(starting_bkpts - 1) * make_k * (stats::dpois(length(k_ends_new) -
       2, lambda)))/(old_new_product_death(starting_bkpts))
     # end of birth and death ratios
 
@@ -378,7 +378,7 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
         return(list(coef = coef, var.coef = diag(1e+06, ar + 1)))
       }
 
-      tryCatch(arima(series, method = "ML", order = c(ar, 0, 0)), error = function(e) arima(series,
+      tryCatch(stats::arima(series, method = "ML", order = c(ar, 0, 0)), error = function(e) stats::arima(series,
                                                                                             method = "CSS", order = c(ar, 0, 0)))
     }
     model <- suppressWarnings(alt_arima(full_data, ar))
@@ -459,13 +459,13 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
     }
 
     prior <- c()
-    birth_old_to_new_ratio <- (factorial(starting_bkpts_2 + 1) * q2 * (dpois(length(k_ends_new) -
+    birth_old_to_new_ratio <- (factorial(starting_bkpts_2 + 1) * q2 * (stats::dpois(length(k_ends_new) -
       2, lambda)))/(old_new_product_birth_sampling(starting_bkpts_2))
-    birth_new_to_old_ratio <- (factorial(starting_bkpts_2) * q1 * (dpois(length(k_ends) -
+    birth_new_to_old_ratio <- (factorial(starting_bkpts_2) * q1 * (stats::dpois(length(k_ends) -
       2, lambda)))/(product_death(starting_bkpts_2))
-    death_new_to_old_ratio <- (factorial(starting_bkpts_2) * q2 * (dpois(length(k_ends) -
+    death_new_to_old_ratio <- (factorial(starting_bkpts_2) * q2 * (stats::dpois(length(k_ends) -
       2, lambda)))/(product_death(starting_bkpts_2))
-    death_old_to_new_ratio <- (factorial(starting_bkpts_2 - 1) * make_k * (dpois(length(k_ends_new) -
+    death_old_to_new_ratio <- (factorial(starting_bkpts_2 - 1) * make_k * (stats::dpois(length(k_ends_new) -
       2, lambda)))/(old_new_product_death(starting_bkpts_2))
     ratios <- c(birth_old_to_new_ratio, birth_new_to_old_ratio, death_new_to_old_ratio,
       death_old_to_new_ratio)
@@ -477,8 +477,8 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
 
     delta_bic <- (-2 * new_loglik + log(n) * (length(k_ends_new) - 1) * (3 +
       ar)) - (-2 * old_loglik + log(n) * (length(k_ends) - 1) * (3 + ar))
-    ratio <- (-1 * delta_bic/2) + (log(q1 * dpois(length(k_ends_new) - 2, lambda)) -
-      log(q2 * dpois(length(k_ends) - 2, lambda)))
+    ratio <- (-1 * delta_bic/2) + (log(q1 * stats::dpois(length(k_ends_new) - 2, lambda)) -
+      log(q2 * stats::dpois(length(k_ends) - 2, lambda)))
     u_ratio <- log(runif(1))  # random number from 0 to 1 taken from a uniform distribution and then log transformed
 
     if (!is.finite(delta_bic) || !is.finite(ratio)) {

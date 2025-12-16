@@ -87,7 +87,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
       return(Inf)
     }
     fit <- FitAR(y[start:end], p = order)
-    res <- stats::na.omit(residuals(fit))
+    res <- stats::na.omit(stats::residuals(fit))
     sum(res^2)
   }
 
@@ -189,7 +189,7 @@ bai_perron_ar <- function(data, order = 1L, interval = 0.15, max_breaks = 3L,
   # evaluate the null (no breakpoint) model
 
   null_fit <- FitAR(y, p = order)
-  null_res <- stats::na.omit(residuals(null_fit))
+  null_res <- stats::na.omit(stats::residuals(null_fit))
   null_ssr <- sum(null_res^2)
   base_constant <- n * (log(2 * pi) + 1)
   ssr_values[1] <- null_ssr

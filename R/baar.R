@@ -651,18 +651,18 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
 
     if (ncol(all_k_best) == 0) {
       if (length(k_vec) > 0) {
-        all_k_best <- data.frame(matrix(rep(k_vec, each = iterations), nrow = iterations))
+        all_k_best <- data.frame(matrix(rep(k_vec, times = iterations), nrow = iterations, byrow = TRUE))
       } else {
         all_k_best <- data.frame(matrix(ncol = 0, nrow = iterations))
       }
-    } else {
-      pad_mat <- if (length(k_vec) > 0 && length(k_vec) == ncol(all_k_best)) {
-        matrix(rep(k_vec, each = pad_n), nrow = pad_n)
       } else {
-        matrix(NA_real_, nrow = pad_n, ncol = ncol(all_k_best))
+        pad_mat <- if (length(k_vec) > 0 && length(k_vec) == ncol(all_k_best)) {
+          matrix(rep(k_vec, times = pad_n), nrow = pad_n, byrow = TRUE)
+        } else {
+          matrix(NA_real_, nrow = pad_n, ncol = ncol(all_k_best))
+        }
+        all_k_best <- rbind(all_k_best, pad_mat)
       }
-      all_k_best <- rbind(all_k_best, pad_mat)
-    }
 
     if (nrow(all_BIC) < iterations) {
       pad_bic <- data.frame(BIC = rep(bic_val, iterations - nrow(all_BIC)))
@@ -673,7 +673,7 @@ baar <- function(k = NULL, time, data, iterations, burn_in = 50, make_murder_p =
       if (nrow(all_fits) == 0) {
         all_fits <- matrix(rep(fallback_fit, iterations), nrow = iterations, byrow = TRUE)
       } else {
-        pad_fit <- matrix(rep(fallback_fit, each = iterations - nrow(all_fits)), nrow = iterations -
+        pad_fit <- matrix(rep(fallback_fit, times = iterations - nrow(all_fits)), nrow = iterations -
                             nrow(all_fits), byrow = TRUE)
         all_fits <- rbind(all_fits, pad_fit)
       }

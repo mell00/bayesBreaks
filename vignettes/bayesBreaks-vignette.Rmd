@@ -75,3 +75,35 @@ plot(
 
 If you want to generate new draws on the fly, you can also call the helper
 functions (for example `test_data_2()`) directly after setting your own seed.
+
+## Simulating a series with three shifts
+
+The `test_data_*()` helpers in the package generate synthetic time series used
+while developing the sampler. We will use `test_data_2()`, which contains three
+segments with different means.
+
+```{r simulate}
+series <- test_data_2()
+head(series)
+```
+
+A simple plot shows the level shifts built into the generator.
+
+```{r simulate-plot, fig.height=4, fig.width=7, tidy=FALSE, echo=FALSE}
+ggplot(series, aes(time, data_2)) +
+  geom_line(color = "#2F3E63", linewidth = 0.6) +
+  geom_vline(
+    xintercept = c(30, 60),
+    color = "#C73339",
+    linetype = "dashed",
+    linewidth = 0.8
+  ) +
+  labs(
+    title = "Synthetic series with three mean shifts",
+    x = "time",
+    y = "value"
+  ) +
+  plot_theme()
+```
+
+

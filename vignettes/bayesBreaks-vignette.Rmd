@@ -315,3 +315,65 @@ ggplot(noisy_break_df, aes(breaks)) +
   ) +
   plot_theme()
 ```
+
+
+### Abrupt shifts in persistence
+
+`test_data_11()` flips the order of an autoregressive process, simulating a
+highly persistent regime that suddenly becomes much less persistent. These
+changes are harder for simple variance-based heuristics to detect.
+
+```{r simulate-persistence}
+persistent <- test_data_11()
+ggplot(persistent, aes(time, data_11)) +
+  geom_line(color = "#2F3E63", linewidth = 0.6) +
+  geom_vline(xintercept = 45, color = "#C73339", linetype = "dashed",
+             linewidth = 0.8) +
+  labs(
+    title = "Near unit-root segment followed by mild AR",
+    x = "time",
+    y = "value"
+  ) +
+  plot_theme()
+```
+
+Because the main change is in the autocorrelation structure, providing an
+autoregressive order helps both the Bai-Perron search and BAAR sampler.
+
+```{r bai-perron-persistence}
+bp_persist <- bai_perron_ar(persistent$data_11, order = 1, interval = 0.1,
+                            max_breaks = 2, progress = FALSE)
+bp_persist$breakpoints
+```
+
+```{r baar-persistence}
+baar_persist <- baar(
+  time = persistent$time,
+  data = persistent$data_11,
+  iterations = 300,
+  burn_in = 75,
+  make_murder_p = 0.5,
+  percent = 0.05,
+  lambda = 1,
+  jump_p = 0.25,
+  ar = 1,
+  progress = FALSE,
+  fit_storage = FALSE
+)
+persist_counts <- as.data.frame(table(baar_persist$NumBkpts))
+names(persist_counts) <- c("breaks", "frequency")
+
+ggplot(persist_counts, aes(as.numeric(as.character(breaks)), frequency)) +
+  geom_col(fill = "#1A85FF", width = 0.7) +
+  labs(
+    title = "Breakpoint counts with AR(1) structure",
+    x = "number of breakpoints",
+    y = "posterior frequency"
+  ) +
+  scale_x_continuous(breaks = unique(as.numeric(as.character(persist_counts$breaks)))) +
+  plot_theme()
+```
+
+Even in these more extreme settings, quick diagnostic runs show that
+`bai_perron_ar()` and `baar()` adapt to noisy changes in mean and in
+autocorrelation when provided with appropriate autoregressive structure.

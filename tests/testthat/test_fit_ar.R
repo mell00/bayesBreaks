@@ -52,3 +52,21 @@ test_that("FitAR tolerates missing values and demean settings", {
   expect_equal(stats::residuals(fit_demeaned), fit_demeaned$res)
   expect_equal(as.numeric(fitted(fit_demeaned)), as.numeric(clean_series - fit_demeaned$res))
 })
+
+test_that("Rcpp FitAR matches R outputs and improves speed", {
+  skip_on_cran()
+
+  series <- stats::arima.sim(model = list(ar = c(0.6, -0.25)), n = 400)
+
+  r_fit <- FitAR(series, p = 2)
+  c_fit <- FitAR_rcpp(series, p = 2)
+
+  expect_equal(c_fit$phiHat, r_fit$phiHat, tolerance = 1e-08)
+  expect_equal(c_fit$sigsqHat, r_fit$sigsqHat, tolerance = 1e-10)
+  expect_equal(c_fit$res, r_fit$res, tolerance = 1e-08)
+
+  r_time <- system.time(FitAR(series, p = 2))[["elapsed"]]
+  c_time <- system.time(FitAR_rcpp(series, p = 2))[["elapsed"]]
+
+  expect_lte(c_time, r_time * 2)
+})

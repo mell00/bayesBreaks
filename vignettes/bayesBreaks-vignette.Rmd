@@ -66,7 +66,8 @@ This vignette walks through a short workflow:
 All of the development datasets are bundled in `data/` and can be loaded with
 `data(<name>)`. They are two-column data frames with `time` indices and
 a single response column. Below we visualize `data_2`, which contains two
-clearly separated mean shifts.
+clearly separated mean shifts. The raw line plot makes it obvious how long each
+regime persists and how dramatic the shift is before any modelling.
 
 ```{r}
 data(data_2)
@@ -92,7 +93,9 @@ series <- test_data_2()
 head(series)
 ```
 
-A simple plot shows the level shifts built into the generator.
+A simple plot shows the level shifts built into the generator. The dashed red
+lines mark the true changepoints baked into the helper so you can immediately
+see where the algorithm should place breakpoints.
 
 ```{r simulate-plot, fig.height=4, fig.width=7, tidy=FALSE, echo=FALSE}
 ggplot(series, aes(time, data_2)) +
@@ -113,7 +116,7 @@ ggplot(series, aes(time, data_2)) +
 
 ## Frequentist baseline with Bai-Perron
 
-The `bai_perron_ar()` helper evaluates all admissible segmentations up to a
+The `bai_perron_ar()` helper evaluates all possible segmentations up to a
 user-specified maximum number of breakpoints and returns the configuration with
 the smallest Bayesian information criterion (BIC). Using a low autoregressive
 order keeps the example quick to run.
@@ -125,7 +128,7 @@ bp$breakpoints
 bp$BIC
 ```
 
-The BIC curve highlights that the two-break model is preferred for this series.
+The BIC curve highlights that the two-break model is preferred for this series. Look for the dashed vertical line: it marks the lowest BIC across models with a different number of breaks, making it easy to cross-check against the true changepoints drawn earlier.
 
 ```{r bai-perron-plot, fig.height=3.8, fig.width=6.5}
 bic_df <- data.frame(
@@ -173,7 +176,9 @@ str(baar_fit)
 The sampler returns the sampled breakpoint sets (`Breakpoints`) and a vector
 tracking the number of breakpoints per draw (`NumBkpts`). We can examine the
 posterior distribution over breakpoint counts and the empirical frequency of
-individual break locations.
+individual break locations. The count bar chart shows where the MCMC spent most
+of its time (higher bars), so narrow modes indicate a confident posterior on the
+model size.
 
 ```{r baar-summary, fig.height=4, fig.width=7}
 count_df <- as.data.frame(table(baar_fit$NumBkpts))
@@ -224,16 +229,58 @@ ggplot(break_df, aes(breaks)) +
   plot_theme()
 ```
 
-Even with a short run, the BAAR sampler concentrates mass near the two true
+Even with a short run, the BAAR sampler concentrates near the two true
 breakpoints and agrees with the Bai-Perron search on the preferred breakpoint
 count. Increasing the number of iterations and the autoregressive order allows
 for richer fits when analysing real data.
+
+The histogram overlays show how often each time index appeared as a breakpoint
+across MCMC draws. Dashed lines summarize the Bai-Perron estimate and the true
+changepoints so you can see when the posterior favours a nearby position rather
+than an exact match.
+
+## Peeking at the C++ backend
+
+The high-level R functions are backed by C++ routines in `src/` for speed. For
+example, `rcpp_baar.cpp` contains the log-likelihood used inside the
+Metropolis-Hastings steps. You can experiment with a lightweight variant of the
+mean-shift log-likelihood directly from the vignette using `Rcpp::sourceCpp`.
+
+```{r cpp-loglik, message=FALSE}
+Rcpp::sourceCpp(code = '
+  #include <RcppArmadillo.h>
+  #include <limits>
+  // [[Rcpp::depends(RcppArmadillo)]]
+  // [[Rcpp::export]]
+  double segment_loglik_cpp(Rcpp::NumericVector x) {
+    arma::vec segment = Rcpp::as<arma::vec>(x);
+    double mean = arma::mean(segment);
+    arma::vec centered = segment - mean;
+    double sigma2 = arma::mean(arma::square(centered));
+    if (!R_finite(sigma2) || sigma2 <= 0) {
+      sigma2 = std::numeric_limits<double>::epsilon();
+    }
+    return -0.5 * static_cast<double>(segment.n_elem) *
+      (std::log(2 * M_PI) + std::log(sigma2) + 1.0);
+  }
+')
+
+segment_loglik_cpp(series$data_2)
+```
+
+The example shows the same structure as the internal C++ functions: convert the
+R vector to an Armadillo object, compute summary statistics, guard against
+numerical issues, and return a log-likelihood scalar. You can adapt this
+pattern to prototype alternative priors or likelihoods without touching the R
+wrapper code.
 
 ## Stress-testing on noisier series
 
 The package includes more extreme toy datasets that expose challenges such as
 large jumps and near-unit-root behaviour. They provide quick checks that the
-baseline and sampler still recover the main structure.
+baseline and sampler still recover the main structure. Each plot in this section
+calls out the placed changepoints so you can visually compare the truth to the
+estimated quantities shown next.
 
 ### Wide variance swings
 
@@ -255,7 +302,9 @@ ggplot(noisy, aes(time, data_4)) +
 ```
 
 Even under high variance, the Bai-Perron BIC search still points to two
-breakpoints when the autoregressive order stays low.
+breakpoints when the autoregressive order stays low. Use the dashed line in the
+plot to spot the minimum BIC; if it hugs the true changepoints, the search is
+providing a stable baseline before running the sampler.
 
 ```{r bai-perron-extreme-variance}
 bp_noisy <- bai_perron_ar(noisy$data_4, order = 0, interval = 0.1,
@@ -277,7 +326,9 @@ ggplot(bic_noisy, aes(breaks, bic)) +
 ```
 
 Running a short BAAR chain still concentrates posterior mass near the break
-locations despite the noise.
+locations despite the noise. The histogram and vertical overlays reveal when the
+posterior allows slight jitter around the truth versus locking tightly onto the
+known changepoints.
 
 ```{r baar-extreme-variance}
 baar_noisy <- baar(
@@ -343,7 +394,9 @@ ggplot(persistent, aes(time, data_11)) +
 ```
 
 Because the main change is in the autocorrelation structure, providing an
-autoregressive order helps both the Bai-Perron search and BAAR sampler.
+autoregressive order helps both the Bai-Perron search and BAAR sampler. We start with a
+visual inspection to spot persistence changes, then align the autoregressive
+order in the model to capture the regime shift.
 
 ```{r bai-perron-persistence}
 bp_persist <- bai_perron_ar(persistent$data_11, order = 1, interval = 0.1,

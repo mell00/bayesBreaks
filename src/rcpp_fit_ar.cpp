@@ -26,7 +26,7 @@ extern "C" SEXP rcpp_fit_ar(SEXP z, SEXP p, SEXP demean) {
   y = y.elem(arma::find_finite(y));
   uword n = y.n_elem;
   if (n == 0) {
-    Rcpp::stop("`z` must contain at least one finite observation");
+    Rcpp::stop("`z` must contain at least one finite observation.");
   }
   int order = Rcpp::as<int>(p);
   bool do_demean = Rcpp::as<bool>(demean);
@@ -34,7 +34,7 @@ extern "C" SEXP rcpp_fit_ar(SEXP z, SEXP p, SEXP demean) {
     Rcpp::stop("`p` must be non-negative.");
   }
   if (static_cast<uword>(order) >= n) {
-    Rcpp::stop("series length must exceed the autoregressive order");
+    Rcpp::stop("Series length must exceed the autoregressive order.");
   }
 
   double mu_hat = do_demean ? arma::mean(y) : 0.0;
@@ -73,16 +73,23 @@ extern "C" SEXP rcpp_fit_ar(SEXP z, SEXP p, SEXP demean) {
     }
     resid[t] = centered[t] - pred;
   }
-  double sigma2 = arma::mean(arma::square(resid));
+  double sigma2 = arma::mean(arma::square(resid.tail(n - static_cast<uword>(order))));
   if (!R_finite(sigma2) || sigma2 <= 0) sigma2 = std::numeric_limits<double>::epsilon();
   double loglik = -0.5 * static_cast<double>(n) * (std::log(2 * M_PI) + std::log(sigma2) + 1.0);
+
+  Rcpp::NumericVector res_out = Rcpp::wrap(resid);
+  Rcpp::NumericVector fits_out = Rcpp::wrap(y - resid);
+  for (int j = 0; j < order && j < static_cast<int>(n); ++j) {
+    res_out[j] = NA_REAL;
+    fits_out[j] = NA_REAL;
+  }
 
   return Rcpp::wrap(Rcpp::List::create(
       Rcpp::Named("loglikelihood") = loglik,
       Rcpp::Named("phiHat") = phi,
       Rcpp::Named("sigsqHat") = sigma2,
       Rcpp::Named("muHat") = mu_hat,
-      Rcpp::Named("res") = resid,
-      Rcpp::Named("fits") = y - resid
+      Rcpp::Named("res") = res_out,
+      Rcpp::Named("fits") = fits_out
   ));
 }

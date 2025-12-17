@@ -27,9 +27,8 @@ Metropolis–Hastings Bayesian Adaptive Auto-Regression (BAAR) sampler, a freque
   the best segmentation.
 - Lightweight autoregressive fitting utilities plus `test_data_*()` generators
   and ready-to-use `data_*` series for quick prototyping.
-- A "Getting started" vignette (`vignette("bayesBreaks-vignette")`) that walks
-  through a full workflow from simulated data to posterior breakpoint
-  inference.
+- A "Getting started" vignette that walks through a full workflow from simulated
+  data to posterior breakpoint inference.
 
 ## Installation
 

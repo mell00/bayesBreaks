@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <numeric>
 #include <vector>
-#include <cstdlib>
+#include <cmath>
 // [[Rcpp::depends(RcppArmadillo)]]
 
 using arma::vec;
@@ -48,7 +48,8 @@ static double fit_segment_loglik(const vec &segment, int ar_order) {
 
 static double segmentation_loglik(const vec &data, const arma::ivec &ends, int ar_order) {
   double sum = 0.0;
-  for (int i = 1; i < ends.n_elem; ++i) {
+  int n_ends = static_cast<int>(ends.n_elem);
+  for (int i = 1; i < n_ends; ++i) {
     int start = ends[i - 1] - 1; // convert to 0-indexed
     int stop = ends[i] - 1;
     if (stop < start) return R_NegInf;
@@ -74,7 +75,9 @@ static arma::ivec add_breakpoint(const arma::ivec &k_ends, int ar_order, int n) 
   diff.reserve(n);
   std::set_difference(full.begin(), full.end(), exclude.begin(), exclude.end(), std::back_inserter(diff));
   if (diff.empty()) return k_ends;
-  int idx = diff.size() == 1 ? diff[0] : diff[std::rand() % diff.size()];
+  int idx = diff.size() == 1
+  ? diff[0]
+  : diff[static_cast<int>(std::floor(::unif_rand() * diff.size()))];
   arma::ivec updated(k_ends.n_elem + 1);
   for (uword i = 0; i < k_ends.n_elem; ++i) updated[i] = k_ends[i];
   updated[updated.n_elem - 1] = idx;
@@ -85,7 +88,9 @@ static arma::ivec add_breakpoint(const arma::ivec &k_ends, int ar_order, int n) 
 static arma::ivec remove_breakpoint(const arma::ivec &k_ends) {
   if (k_ends.n_elem <= 2) return k_ends;
   int interior = k_ends.n_elem - 2;
-  int choice = (interior == 1) ? 1 : (std::rand() % interior + 1);
+  int choice = (interior == 1)
+    ? 1
+  : static_cast<int>(std::floor(::unif_rand() * interior)) + 1;
   arma::ivec updated(k_ends.n_elem - 1);
   int ptr = 0;
   for (uword i = 0; i < k_ends.n_elem; ++i) {
@@ -98,7 +103,7 @@ static arma::ivec remove_breakpoint(const arma::ivec &k_ends) {
 static arma::ivec jiggle_breakpoint(const arma::ivec &k_ends, double percent, int ar_order, int n) {
   if (k_ends.n_elem <= 2) return k_ends;
   int interior = k_ends.n_elem - 2;
-  int idx = std::rand() % interior + 1;
+  int idx = static_cast<int>(std::floor(::unif_rand() * interior)) + 1;
   int bkpt = k_ends[idx];
   int wiggle = std::max(1, static_cast<int>(std::floor(n * percent)));
   int left = std::max(1, bkpt - wiggle);
@@ -107,7 +112,7 @@ static arma::ivec jiggle_breakpoint(const arma::ivec &k_ends, double percent, in
   left = std::max(left, k_ends[idx - 1] + constraint);
   right = std::min(right, k_ends[idx + 1] - constraint);
   if (left >= right) return k_ends;
-  int proposal = left + (std::rand() % (right - left + 1));
+  int proposal = left + static_cast<int>(std::floor(::unif_rand() * (right - left + 1)));
   arma::ivec updated = k_ends;
   updated[idx] = proposal;
   updated = arma::sort(updated);
@@ -117,6 +122,7 @@ static arma::ivec jiggle_breakpoint(const arma::ivec &k_ends, double percent, in
 extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP burn_in,
                          SEXP make_murder_p, SEXP percent, SEXP lambda, SEXP jump_p,
                          SEXP ar, SEXP progress, SEXP fit_storage) {
+  Rcpp::RNGScope rng_scope;
   Rcpp::NumericVector time_vec(time);
   Rcpp::NumericVector data_vec(data);
   int iterations_val = Rcpp::as<int>(iterations);
@@ -201,7 +207,8 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
     mh_iteration(k_ends, burn_probs.first, burn_probs.second);
   }
 
-  Rcpp::IntegerMatrix break_mat(iterations_val, std::max(1, k_ends.n_elem - 2));
+  int n_cols = std::max(1, static_cast<int>(k_ends.n_elem) - 2);
+  Rcpp::IntegerMatrix break_mat(iterations_val, n_cols);
   Rcpp::NumericVector bic_vals(iterations_val);
   int accept = 0;
   int add_acc = 0, sub_acc = 0, move_acc = 0, jiggle_acc = 0;
@@ -217,8 +224,10 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
       if (type == "add") add_acc++; else if (type == "sub") sub_acc++; else if (type == "move") move_acc++; else jiggle_acc++;
     }
     arma::ivec interior = k_ends.subvec(1, k_ends.n_elem - 2);
-    for (uword j = 0; j < break_mat.ncol(); ++j) {
-      break_mat(iter, j) = (j < interior.n_elem) ? interior[j] : NA_INTEGER;
+    int ncol = break_mat.ncol();
+    int interior_len = static_cast<int>(interior.n_elem);
+    for (int j = 0; j < ncol; ++j) {
+      break_mat(iter, j) = (j < interior_len) ? interior[j] : NA_INTEGER;
     }
     double current_loglik = loglik_fn(k_ends);
     bic_vals[iter] = -2.0 * current_loglik + std::log(static_cast<double>(n)) * (k_ends.n_elem - 1) * (3 + ar_val);
@@ -237,13 +246,23 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
     Rcpp::Named("jiggle") = jiggle_acc
   );
 
+  int ncol = break_mat.ncol();
+  Rcpp::IntegerVector num_bkpts(iterations_val, 0);
+  for (int i = 0; i < iterations_val; ++i) {
+    for (int j = 0; j < ncol; ++j) {
+      if (break_mat(i, j) > 0) {
+        num_bkpts[i] += 1;
+      }
+    }
+  }
+
   Rcpp::List final_list = Rcpp::List::create(
     Rcpp::Named("AcceptRate") = static_cast<double>(accept) / static_cast<double>(iterations_val),
     Rcpp::Named("ProposedSteps") = proposed,
     Rcpp::Named("AcceptedSteps") = accepted,
     Rcpp::Named("BIC") = bic_vals,
     Rcpp::Named("Breakpoints") = break_mat,
-    Rcpp::Named("NumBkpts") = Rcpp::RowSums(break_mat > 0)
+    Rcpp::Named("NumBkpts") = num_bkpts
   );
 
   (void)progress_val; // maintained for interface parity

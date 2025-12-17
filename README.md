@@ -3,21 +3,61 @@
 
 # bayesBreaks
 
-`bayesBreaks` is an R package (see [`bayesBreaks/`](bayesBreaks/)) that
-implements the Bayesian Adaptive Auto-Regression (BAAR) sampler,
-includes packaged synthetic time-series datasets, and includes a
-Bai-Perron helper to compare Bayesian and frequentist breakpoint
-detection.
+`bayesBreaks` is an R package for detecting structural breaks in
+autoregressive time-series models. It bundles the Metropolis–Hastings
+Bayesian Adaptive Auto-Regression (BAAR) sampler, a frequentist
+Bai–Perron style grid search, and a set of reproducible synthetic
+datasets for experimentation.
+
+## What the package includes
+
+- `baar()` / `baar_rcpp()` Metropolis–Hastings samplers that return
+  posterior breakpoint draws, acceptance statistics, and log-likelihood
+  diagnostics.
+- `bai_perron_ar()` and `bai_perron_ar_rcpp()` helpers that search over
+  breakpoint configurations up to a user-specified limit using BIC to
+  select the best segmentation.
+- Lightweight autoregressive fitting utilities plus `test_data_*()`
+  generators and ready-to-use `data_*` series for quick prototyping.
+- A “Getting started” vignette (`vignette("bayesBreaks-vignette")`) that
+  walks through a full workflow from simulated data to posterior
+  breakpoint inference.
 
 ## Installation
 
 From an R session run `devtools::install("bayesBreaks")` or
-`R CMD INSTALL bayesBreaks`, then load the package and run
-`test_data_44()` or `bai_perron_ar()` to explore the bundled examples.
+`R CMD INSTALL bayesBreaks`, then load the package and explore the
+examples below.
 
-## Next steps
+## Quick start
 
-Planned work includes drafting a vignette that walks through BAAR versus
-frequentist outputs, filling any remaining Rd documentation gaps,
-profiling the samplers for C++ rewrites and comparing performance with R
-versions.
+The snippet below fits both the frequentist and Bayesian breakpoint
+models to a synthetic series bundled with the package. The Bai–Perron
+helper returns a BIC-optimised configuration, and the BAAR sampler
+returns posterior breakpoint draws you can summarise downstream.
+
+``` r
+library(bayesBreaks)
+series <- test_data_2()
+
+# frequentist baseline using Bai–Perron style search
+bai_results <- bai_perron_ar(series$data_2, order = 0, interval = 0.1,
+  max_breaks = 2, progress = FALSE)
+
+# Bayesian sampler exploring breakpoint posteriors
+baar_draws <- baar(
+  time = series$time,
+  data = series$data_2,
+  iterations = 200,
+  burn_in = 50,
+  ar = 1,
+  progress = FALSE
+)
+
+bai_results$breakpoints
+head(baar_draws$k_accept)
+```
+
+For a more detailed walkthrough, including visualisations of simulated
+data and posterior breakpoint draws, run the accompanying vignette with
+`vignette("bayesBreaks-vignette")`.

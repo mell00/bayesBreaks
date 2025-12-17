@@ -1,0 +1,2 @@
+## Ensure Armadillo links against BLAS/LAPACK provided by R on Windows
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)

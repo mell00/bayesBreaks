@@ -28,37 +28,37 @@ A data frame with two columns:
 name matches the dataset object (e.g., \code{data_10}).}
 }
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 90 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 300 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 900 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 900 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 
-An object of class \code{data.frame} with 200 rows and 2 columns.
+An object of class \code{NULL} of length 0.
 }
 \source{
 Generated via functions in \code{\link{test_data_generators}}.

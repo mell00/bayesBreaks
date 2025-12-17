@@ -32,3 +32,24 @@ test_that("Bai-Perron helper validates adversarial inputs", {
   expect_error(bai_perron_ar(rep(0, 50), interval = 0.9, max_breaks = 3),
                "too restrictive")
 })
+
+test_that("Rcpp Bai-Perron mirrors R results and runtime", {
+  skip_on_cran()
+
+  data <- test_data_2()
+
+  r_out <- bai_perron_ar(data$data_2, order = 0, interval = 0.12, max_breaks = 2,
+                         progress = FALSE)
+  c_out <- bai_perron_ar_rcpp(data$data_2, order = 0, interval = 0.12, max_breaks = 2)
+
+  expect_equal(c_out$breakpoints, r_out$breakpoints)
+  expect_equal(c_out$all_breakpoints, r_out$all_breakpoints)
+  expect_equal(c_out$SSR, r_out$SSR, tolerance = 1e-08)
+  expect_equal(c_out$BIC, r_out$BIC, tolerance = 1e-08)
+
+  r_time <- system.time(bai_perron_ar(data$data_2, order = 0, interval = 0.12, max_breaks = 2,
+                                      progress = FALSE))["elapsed"]
+  c_time <- system.time(bai_perron_ar_rcpp(data$data_2, order = 0, interval = 0.12, max_breaks = 2))["elapsed"]
+
+  expect_lte(c_time, r_time * 2)
+})

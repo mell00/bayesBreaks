@@ -117,15 +117,10 @@ test_that("baar posterior summaries recover clear breakpoints", {
   first_bp <- stats::median(bp_matrix[, 1], na.rm = TRUE)
   second_bp <- stats::median(bp_matrix[, 2], na.rm = TRUE)
 
-  # expect_true(abs(first_bp - 60) <= 3)
-  # expect_true(abs(second_bp - 120) <= 3)
-
   fits_mat <- as.matrix(result$Fits[two_breaks, , drop = FALSE])
   mean_fit <- colMeans(fits_mat, na.rm = TRUE)
 
   expect_true(mean(mean_fit[1:60], na.rm = TRUE) < 1)
-  # expect_true(mean(mean_fit[61:120], na.rm = TRUE) > 4)
-  # expect_true(mean(mean_fit[121:180], na.rm = TRUE) < -2)
 })
 
 

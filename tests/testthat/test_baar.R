@@ -164,6 +164,30 @@ test_that("baar handles constant series without inventing breakpoints", {
   expect_true(max(abs(mean_fit - 3), na.rm = TRUE) < 1)
 })
 
+test_that("stored BAAR draws align with breakpoint counts", {
+  d <- test_data_44()
+  result <- baar(time = d$time, data = d$data_44, iterations = 6, burn_in = 3,
+                 progress = FALSE, fit_storage = TRUE)
+
+  expect_equal(result$NumBkpts, rowSums(!is.na(result$Breakpoints)))
+
+  segment_counts <- result$NumBkpts + 1L
+  beta_cols <- vapply(result$Beta, ncol, integer(1))
+  sigma_cols <- vapply(result$Sigma, ncol, integer(1))
+
+  expect_equal(beta_cols[beta_cols > 0], segment_counts[beta_cols > 0])
+  expect_equal(sigma_cols[sigma_cols > 0], segment_counts[sigma_cols > 0])
+
+  zero_breaks <- which(result$NumBkpts == 0)
+  if (length(zero_breaks) > 0) {
+    flat_fits <- result$Fits[zero_breaks, , drop = FALSE]
+    mean_by_draw <- rowMeans(flat_fits, na.rm = TRUE)
+    expect_true(all(abs(mean_by_draw - mean(d$data_44)) < 1))
+  }
+})
+
+
+
 test_that("Rcpp BAAR approximates R outputs efficiently", {
   skip_on_cran()
 

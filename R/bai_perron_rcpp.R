@@ -12,7 +12,7 @@ bai_perron_ar_rcpp <- function(data, order = 1L, interval = 0.15, max_breaks = 3
   res <- .Call("rcpp_bai_perron", PACKAGE = "bayesBreaks", data, as.integer(order),
                as.numeric(interval), as.integer(max_breaks))
 
-  # normalise names and fall back to the R helper if the compiled result is degenerate
+  # normalize names and fall back to the R helper if the compiled result is degenerate
   names(res$SSR) <- names(res$BIC) <- as.character(0:max_breaks)
 
   bp <- res$breakpoints

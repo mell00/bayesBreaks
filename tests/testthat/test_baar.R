@@ -163,3 +163,28 @@ test_that("baar handles constant series without inventing breakpoints", {
   expect_true(any(!is.na(mean_fit)))
   expect_true(max(abs(mean_fit - 3), na.rm = TRUE) < 1)
 })
+
+test_that("Rcpp BAAR approximates R outputs efficiently", {
+  skip_on_cran()
+
+  set.seed(24681012)
+  d <- test_data_1()
+
+  r_out <- baar(time = d$time, data = d$data_1, iterations = 12, burn_in = 6,
+                progress = FALSE, fit_storage = FALSE)
+  set.seed(24681012)
+  c_out <- baar_rcpp(time = d$time, data = d$data_1, iterations = 12, burn_in = 6,
+                     progress = FALSE, fit_storage = FALSE)
+
+  expect_equal(names(c_out), names(r_out))
+  expect_equal(c_out$NumBkpts, r_out$NumBkpts)
+  expect_equal(c_out$Breakpoints, r_out$Breakpoints)
+  expect_equal(c_out$BIC$BIC, r_out$BIC$BIC, tolerance = 1e-06)
+
+  r_time <- system.time(baar(time = d$time, data = d$data_1, iterations = 12, burn_in = 6,
+                             progress = FALSE, fit_storage = FALSE))["elapsed"]
+  c_time <- system.time(baar_rcpp(time = d$time, data = d$data_1, iterations = 12, burn_in = 6,
+                                  progress = FALSE, fit_storage = FALSE))["elapsed"]
+
+  expect_lte(as.numeric(c_time), as.numeric(r_time) * 2)
+})

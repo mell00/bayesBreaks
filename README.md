@@ -59,5 +59,4 @@ head(baar_draws$k_accept)
 ```
 
 For a more detailed walkthrough, including visualisations of simulated
-data and posterior breakpoint draws, run the accompanying vignette with
-`vignette("bayesBreaks-vignette")`.
+data and posterior breakpoint draws, please see the accompanying vignette.

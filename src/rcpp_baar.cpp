@@ -209,6 +209,7 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
 
   int n_cols = std::max(1, static_cast<int>(k_ends.n_elem) - 2);
   Rcpp::IntegerMatrix break_mat(iterations_val, n_cols);
+  std::fill(break_mat.begin(), break_mat.end(), NA_INTEGER);
   Rcpp::NumericVector bic_vals(iterations_val);
   int accept = 0;
   int add_acc = 0, sub_acc = 0, move_acc = 0, jiggle_acc = 0;
@@ -224,8 +225,21 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
       if (type == "add") add_acc++; else if (type == "sub") sub_acc++; else if (type == "move") move_acc++; else jiggle_acc++;
     }
     arma::ivec interior = k_ends.subvec(1, k_ends.n_elem - 2);
-    int ncol = break_mat.ncol();
     int interior_len = static_cast<int>(interior.n_elem);
+
+    if (interior_len > break_mat.ncol()) {
+      Rcpp::IntegerMatrix expanded(iterations_val, interior_len);
+      std::fill(expanded.begin(), expanded.end(), NA_INTEGER);
+
+      for (int r = 0; r <= iter; ++r) {
+        for (int c = 0; c < break_mat.ncol(); ++c) {
+          expanded(r, c) = break_mat(r, c);
+        }
+      }
+      break_mat = expanded;
+    }
+
+    int ncol = break_mat.ncol();
     for (int j = 0; j < ncol; ++j) {
       break_mat(iter, j) = (j < interior_len) ? interior[j] : NA_INTEGER;
     }

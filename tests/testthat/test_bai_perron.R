@@ -33,6 +33,26 @@ test_that("Bai-Perron helper validates adversarial inputs", {
                "too restrictive")
 })
 
+test_that("Bai-Perron supports alternative grids and AR orders", {
+  data <- test_data_2()
+
+  fine_grid <- bai_perron_ar(data$data_2, order = 0, interval = 0.05, max_breaks = 2,
+                             progress = FALSE)
+  expect_length(fine_grid$breakpoints, 2)
+  expect_true(all(abs(fine_grid$breakpoints - c(30, 60)) <= 6))
+
+  ar_signal <- arima.sim(model = list(ar = 0.5), n = 160)
+  ar_series <- ar_signal + rep(c(0, 3), each = 80)
+  ar_result <- bai_perron_ar(ar_series, order = 1, interval = 0.1, max_breaks = 1,
+                             progress = FALSE)
+
+  expect_length(ar_result$breakpoints, 1)
+  expect_true(abs(ar_result$breakpoints - 80) <= 6)
+  expect_true(which.min(ar_result$BIC) >= 1)
+})
+
+
+
 test_that("Rcpp Bai-Perron mirrors R results and runtime", {
   skip_on_cran()
 

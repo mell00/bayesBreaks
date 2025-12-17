@@ -85,6 +85,25 @@ static arma::ivec add_breakpoint(const arma::ivec &k_ends, int ar_order, int n) 
   return updated;
 }
 
+static int count_free_positions(const arma::ivec &k_ends, int ar_order, int n) {
+  int constraint = (ar_order == 1) ? 2 : (2 * ar_order - 1);
+  std::vector<int> full(n);
+  std::iota(full.begin(), full.end(), 1);
+  std::vector<int> exclude;
+  exclude.reserve(k_ends.n_elem * (2 * constraint + 1));
+  for (int v : k_ends) {
+    int left = std::max(1, v - constraint);
+    int right = std::min(n, v + constraint);
+    for (int pos = left; pos <= right; ++pos) exclude.push_back(pos);
+  }
+  std::sort(exclude.begin(), exclude.end());
+  exclude.erase(std::unique(exclude.begin(), exclude.end()), exclude.end());
+  std::vector<int> diff;
+  diff.reserve(n);
+  std::set_difference(full.begin(), full.end(), exclude.begin(), exclude.end(), std::back_inserter(diff));
+  return static_cast<int>(diff.size());
+}
+
 static arma::ivec remove_breakpoint(const arma::ivec &k_ends) {
   if (k_ends.n_elem <= 2) return k_ends;
   int interior = k_ends.n_elem - 2;
@@ -144,7 +163,8 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
   Rcpp::Nullable<Rcpp::IntegerVector> k_in(k);
   arma::ivec k_vec;
   if (k_in.isNotNull()) {
-    k_vec = Rcpp::as<arma::ivec>(k_in.get());
+    Rcpp::IntegerVector k_in_vec(k_in.get());
+    k_vec = Rcpp::as<arma::ivec>(k_in_vec);
     k_vec = k_vec.elem(arma::find(k_vec > 0));
   } else {
     k_vec = arma::ivec();
@@ -155,8 +175,8 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
   k_ends[k_ends.n_elem - 1] = n;
 
   auto proposal_probs = [&](const arma::ivec &ends) {
-    int starting_bkpts = ends.n_elem - 2;
-    int nfree = std::max(1, n - 2 * ar_val - starting_bkpts);
+    int starting_bkpts = ends.n_elem - 1; // mirrors R's length(k_ends) - 1
+    int nfree = std::max(1, count_free_positions(ends, ar_val, n));
     double total = starting_bkpts + nfree;
     double mk = make_val * (nfree / total);
     double mr = make_val * (starting_bkpts / total);
@@ -176,9 +196,15 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
         (arma::max(arma::diff(ends)) >= constraint && u <= make_k)) {
       proposal = add_breakpoint(ends, ar_val, n);
       type = "add";
+      q1 = murder_k / static_cast<double>(proposal.n_elem - 2);
+      int nfree = std::max(1, count_free_positions(ends, ar_val, n));
+      q2 = make_k / static_cast<double>(nfree);
     } else if (u > make_k && u <= (make_k + murder_k)) {
       proposal = remove_breakpoint(ends);
       type = "sub";
+      int nfree = std::max(1, count_free_positions(proposal, ar_val, n));
+      q1 = make_k / static_cast<double>(nfree);
+      q2 = murder_k / static_cast<double>(std::max(1, static_cast<int>(ends.n_elem) - 2));
     } else {
       double move_u = ::unif_rand();
       if (move_u < jump_val) {
@@ -207,7 +233,7 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
     mh_iteration(k_ends, burn_probs.first, burn_probs.second);
   }
 
-  int n_cols = std::max(1, static_cast<int>(k_ends.n_elem) - 2);
+  int n_cols = static_cast<int>(k_ends.n_elem) - 2;
   Rcpp::IntegerMatrix break_mat(iterations_val, n_cols);
   std::fill(break_mat.begin(), break_mat.end(), NA_INTEGER);
   Rcpp::NumericVector bic_vals(iterations_val);
@@ -224,7 +250,10 @@ extern "C" SEXP rcpp_baar(SEXP k, SEXP time, SEXP data, SEXP iterations, SEXP bu
       accept++;
       if (type == "add") add_acc++; else if (type == "sub") sub_acc++; else if (type == "move") move_acc++; else jiggle_acc++;
     }
-    arma::ivec interior = k_ends.subvec(1, k_ends.n_elem - 2);
+    arma::ivec interior;
+    if (k_ends.n_elem > 2) {
+      interior = k_ends.subvec(1, k_ends.n_elem - 2);
+    }
     int interior_len = static_cast<int>(interior.n_elem);
 
     if (interior_len > break_mat.ncol()) {

@@ -246,7 +246,7 @@ example, `rcpp_baar.cpp` contains the log-likelihood used inside the
 Metropolis-Hastings steps. You can experiment with a lightweight variant of the
 mean-shift log-likelihood directly from the vignette using `Rcpp::sourceCpp`.
 
-```{r cpp-loglik, message=FALSE}
+```{r cpp-loglik, message=FALSE, eval = requireNamespace("RcppArmadillo", quietly = TRUE)}
 Rcpp::sourceCpp(code = '
   #include <RcppArmadillo.h>
   #include <limits>

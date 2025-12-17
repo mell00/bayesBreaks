@@ -71,5 +71,5 @@ test_that("Rcpp Bai-Perron mirrors R results and runtime", {
                                       progress = FALSE))["elapsed"]
   c_time <- system.time(bai_perron_ar_rcpp(data$data_2, order = 0, interval = 0.12, max_breaks = 2))["elapsed"]
 
-  expect_lte(c_time, r_time * 2)
+  expect_lte(c_time, r_time * 0.5)
 })

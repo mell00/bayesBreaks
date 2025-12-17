@@ -53,6 +53,7 @@ test_that("FitAR tolerates missing values and demean settings", {
   expect_equal(as.numeric(fitted(fit_demeaned)), as.numeric(clean_series - fit_demeaned$res))
 })
 
+
 test_that("Rcpp FitAR matches R outputs and improves speed", {
   skip_on_cran()
 
@@ -68,5 +69,5 @@ test_that("Rcpp FitAR matches R outputs and improves speed", {
   r_time <- system.time(FitAR(series, p = 2))[["elapsed"]]
   c_time <- system.time(FitAR_rcpp(series, p = 2))[["elapsed"]]
 
-  expect_lte(c_time, r_time * 2)
+  expect_lte(c_time, r_time * 0.5)
 })

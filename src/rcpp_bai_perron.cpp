@@ -126,10 +126,12 @@ extern "C" SEXP rcpp_bai_perron(SEXP data, SEXP order, SEXP interval, SEXP max_b
     Rcpp::IntegerVector bps(segments - 1);
     uword current_end = n - 1;
     int current_seg = segments - 1;
-    while (current_seg >= 0 && current_seg < max_segments - 1) {
+    while (current_seg >= 1 && current_seg < max_segments) {
       int bp = last_break(current_seg, current_end);
       if (bp <= 0) break;
-      bps[current_seg] = bp;
+      int bps_index = current_seg - 1;
+      if (bps_index < 0 || bps_index >= bps.size()) break;
+      bps[bps_index] = bp;
       current_end = bp - 1;
       --current_seg;
     }
@@ -156,7 +158,13 @@ extern "C" SEXP rcpp_bai_perron(SEXP data, SEXP order, SEXP interval, SEXP max_b
 
   Rcpp::List all_bp(max_breaks_val);
   for (int i = 0; i < max_breaks_val; ++i) all_bp[i] = breakpoint_sets[i];
-
+  if (max_breaks_val > 0) {
+    Rcpp::CharacterVector bp_names(max_breaks_val);
+    for (int i = 0; i < max_breaks_val; ++i) {
+      bp_names[i] = std::to_string(i + 1);
+    }
+    all_bp.attr("names") = bp_names;
+  }
   return Rcpp::wrap(Rcpp::List::create(
       Rcpp::Named("breakpoints") = best_breakpoints,
       Rcpp::Named("all_breakpoints") = all_bp,
